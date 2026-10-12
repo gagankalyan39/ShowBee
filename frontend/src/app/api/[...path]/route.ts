@@ -159,7 +159,35 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
 
   // 1. Movies List
   if (p === 'movies') {
-    return jsonOk({ data: SAMPLE_MOVIES, total: SAMPLE_MOVIES.length });
+    const db = getDbPool();
+    if (db) {
+      try {
+        const result = await db.query(`
+          SELECT m.id, m.title, m.synopsis, m.director, m.rating, m.duration_mins,
+                 m.release_date, m.poster_url, m.banner_url, m.trailer_url,
+                 m.status, m.is_trending, m.country,
+                 l.name AS language, l.code AS language_code,
+                 COALESCE(json_agg(DISTINCT g.name) FILTER (WHERE g.name IS NOT NULL), '[]') AS genres,
+                 COALESCE(json_agg(DISTINCT cm.name) FILTER (WHERE cm.name IS NOT NULL), '[]') AS cast
+          FROM movies m
+          LEFT JOIN languages l ON m.language_id = l.id
+          LEFT JOIN movie_genres mg ON mg.movie_id = m.id
+          LEFT JOIN genres g ON g.id = mg.genre_id
+          LEFT JOIN movie_cast mc ON mc.movie_id = m.id
+          LEFT JOIN cast_members cm ON cm.id = mc.cast_member_id
+          WHERE m.is_published = TRUE
+          GROUP BY m.id, l.name, l.code
+          ORDER BY m.is_trending DESC, m.rating DESC
+          LIMIT 50
+        `);
+        if (result.rows && result.rows.length > 0) {
+          return jsonOk({ data: result.rows, total: result.rows.length, source: 'cloud_postgres' });
+        }
+      } catch (dbErr) {
+        console.warn('Cloud DB movies query fallback to in-memory:', dbErr);
+      }
+    }
+    return jsonOk({ data: SAMPLE_MOVIES, total: SAMPLE_MOVIES.length, source: 'serverless_engine' });
   }
 
   // 2. Single Movie Details
@@ -305,6 +333,33 @@ export async function GET(req: NextRequest, { params }: { params: { path: string
   // 11. Notifications
   if (p === 'notifications') {
     return jsonOk({ data: [], unreadCount: 0 });
+  }
+
+  // 12. Database Connection Check
+  if (p === 'system/db-status') {
+    const db = getDbPool();
+    if (!db) {
+      return jsonOk({
+        connected: false,
+        mode: 'SERVERLESS_STANDALONE',
+        message: 'No POSTGRES_URL or DATABASE_URL provided. Operating in high-performance zero-config serverless mode.'
+      });
+    }
+    try {
+      const res = await db.query('SELECT NOW() as server_time, current_database() as database_name');
+      return jsonOk({
+        connected: true,
+        mode: 'CLOUD_POSTGRES',
+        database: res.rows[0].database_name,
+        timestamp: res.rows[0].server_time
+      });
+    } catch (err: any) {
+      return jsonOk({
+        connected: false,
+        mode: 'SERVERLESS_STANDALONE',
+        error: err.message
+      });
+    }
   }
 
   return jsonOk({ message: `API Route /api/${p} active`, timestamp: new Date().toISOString() });

@@ -86,7 +86,7 @@ export const MovieCard: React.FC<MovieCardProps> = ({ movie, onWatchTrailer }) =
             {movie.language || 'Telugu'}
           </p>
           <p className="text-[11px] text-gray-400 truncate mt-0.5">
-            {movie.genres && movie.genres.length > 0 ? movie.genres.join(', ') : 'Action, Drama'}
+            {movie.genres && (Array.isArray(movie.genres) ? movie.genres.join(', ') : String(movie.genres)) || 'Action, Drama'}
           </p>
         </div>
 

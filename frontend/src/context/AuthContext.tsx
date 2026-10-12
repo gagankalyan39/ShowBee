@@ -22,17 +22,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const savedToken = localStorage.getItem('showbee_token');
-    const savedUser = localStorage.getItem('showbee_user');
+    try {
+      const savedToken = typeof window !== 'undefined' ? localStorage.getItem('showbee_token') : null;
+      const savedUser = typeof window !== 'undefined' ? localStorage.getItem('showbee_user') : null;
 
-    if (savedToken && savedUser) {
-      try {
+      if (savedToken && savedUser) {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
-      } catch {
+      }
+    } catch {
+      try {
         localStorage.removeItem('showbee_token');
         localStorage.removeItem('showbee_user');
-      }
+      } catch {}
     }
     setIsLoading(false);
   }, []);
@@ -43,8 +45,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { user: loggedInUser, token: authToken } = res.data;
       setUser(loggedInUser);
       setToken(authToken);
-      localStorage.setItem('showbee_token', authToken);
-      localStorage.setItem('showbee_user', JSON.stringify(loggedInUser));
+      try {
+        localStorage.setItem('showbee_token', authToken);
+        localStorage.setItem('showbee_user', JSON.stringify(loggedInUser));
+      } catch {}
     }
   };
 
@@ -54,8 +58,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const { user: registeredUser, token: authToken } = res.data;
       setUser(registeredUser);
       setToken(authToken);
-      localStorage.setItem('showbee_token', authToken);
-      localStorage.setItem('showbee_user', JSON.stringify(registeredUser));
+      try {
+        localStorage.setItem('showbee_token', authToken);
+        localStorage.setItem('showbee_user', JSON.stringify(registeredUser));
+      } catch {}
     }
   };
 
@@ -63,8 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     authAPI.logout().catch(() => {});
     setUser(null);
     setToken(null);
-    localStorage.removeItem('showbee_token');
-    localStorage.removeItem('showbee_user');
+    try {
+      localStorage.removeItem('showbee_token');
+      localStorage.removeItem('showbee_user');
+    } catch {}
   };
 
   return (

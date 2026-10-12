@@ -30,11 +30,11 @@ export const HeroCarousel: React.FC<HeroCarouselProps> = ({ movies, onWatchTrail
     );
   }
 
-  const currentMovie = featured[currentIndex];
+  const currentMovie = featured[currentIndex] || featured[0];
   const prevIndex = (currentIndex - 1 + featured.length) % featured.length;
   const nextIndex = (currentIndex + 1) % featured.length;
-  const prevMovie = featured[prevIndex];
-  const nextMovie = featured[nextIndex];
+  const prevMovie = featured[prevIndex] || currentMovie;
+  const nextMovie = featured[nextIndex] || currentMovie;
 
   const handlePrev = () => {
     setCurrentIndex((prev) => (prev - 1 + featured.length) % featured.length);

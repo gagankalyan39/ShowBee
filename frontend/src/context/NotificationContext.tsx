@@ -54,12 +54,22 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
 
   // Initialize Socket.IO connection
   useEffect(() => {
-    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || 
-      (typeof window !== 'undefined' ? `http://${window.location.hostname}:5000` : 'http://localhost:5000');
-    const s = io(socketUrl, {
-      transports: ['websocket', 'polling'],
-      autoConnect: true,
-    });
+    // Only connect socket if explicit NEXT_PUBLIC_SOCKET_URL is set, or if running locally
+    const isLocalhost = typeof window !== 'undefined' && 
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+    const socketUrl = process.env.NEXT_PUBLIC_SOCKET_URL || (isLocalhost ? 'http://localhost:5000' : null);
+
+    if (!socketUrl) {
+      // In cloud / Vercel without standalone socket server, gracefully operate in serverless mode
+      return;
+    }
+
+    let s: Socket | null = null;
+    try {
+      s = io(socketUrl, {
+        transports: ['websocket', 'polling'],
+        autoConnect: true,
+      });
 
     s.on('connect', () => {
       if (user?.id) {
@@ -97,9 +107,12 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     });
 
     setSocket(s);
+    } catch (err) {
+      console.warn('Socket connection skipped or failed:', err);
+    }
 
     return () => {
-      s.disconnect();
+      s?.disconnect();
     };
   }, [user?.id, displayToast]);
 

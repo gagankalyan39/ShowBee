@@ -71,8 +71,8 @@ function HomePageContent() {
         const q = searchQuery.toLowerCase().trim();
         const matchesTitle = m.title.toLowerCase().includes(q);
         const matchesDirector = m.director?.toLowerCase().includes(q);
-        const matchesCast = m.cast?.some((c) => c.toLowerCase().includes(q));
-        const matchesGenre = m.genres?.some((g) => g.toLowerCase().includes(q));
+        const matchesCast = Array.isArray(m.cast) ? m.cast.some((c) => String(c).toLowerCase().includes(q)) : false;
+        const matchesGenre = Array.isArray(m.genres) ? m.genres.some((g) => String(g).toLowerCase().includes(q)) : false;
         if (!matchesTitle && !matchesDirector && !matchesCast && !matchesGenre) return false;
       }
 
@@ -81,7 +81,7 @@ function HomePageContent() {
       }
 
       if (selectedGenre) {
-        const hasGenre = m.genres?.some((g) => g.toLowerCase() === selectedGenre.toLowerCase());
+        const hasGenre = Array.isArray(m.genres) ? m.genres.some((g) => String(g).toLowerCase() === selectedGenre.toLowerCase()) : false;
         if (!hasGenre) return false;
       }
 

@@ -6,11 +6,18 @@ import { usePathname } from 'next/navigation';
 import { Film, Building2, Tag, Gift, Users, Shield } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 
+interface TabItem {
+  label: string;
+  href: string;
+  icon: any;
+  badge?: string;
+}
+
 export const NavTabs: React.FC = () => {
   const pathname = usePathname();
   const { isAdmin } = useAuth();
 
-  const tabs = [
+  const tabs: TabItem[] = [
     { label: 'Movies', href: '/', icon: Film },
     { label: 'Theatres', href: '/theatres', icon: Building2 },
     { label: 'Offers', href: '/offers', icon: Tag },

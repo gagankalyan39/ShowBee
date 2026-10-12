@@ -17,8 +17,10 @@ import {
   CheckCircle2, 
   XCircle,
   FileText,
-  Percent
+  Percent,
+  Zap
 } from 'lucide-react';
+import AdminBenchmarkLab from '@/components/AdminBenchmarkLab';
 
 export default function AdminDashboardPage() {
   const { user, isAdmin } = useAuth();
@@ -26,7 +28,7 @@ export default function AdminDashboardPage() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [auditLogs, setAuditLogs] = useState<any[]>([]);
   const [revenueReports, setRevenueReports] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'reports' | 'logs'>('overview');
+  const [activeTab, setActiveTab] = useState<'benchmark' | 'overview' | 'users' | 'reports' | 'logs'>('benchmark');
   const [isLoading, setIsLoading] = useState(true);
 
   const loadData = async () => {
@@ -105,8 +107,9 @@ export default function AdminDashboardPage() {
         </div>
 
         {/* Tab Buttons */}
-        <div className="flex items-center gap-1.5 p-1.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] self-start">
+        <div className="flex flex-wrap items-center gap-1.5 p-1.5 rounded-2xl bg-white/[0.04] border border-white/[0.08] self-start">
           {[
+            { id: 'benchmark', label: '⚡ 10k Concurrency Lab', highlight: true },
             { id: 'overview', label: 'Overview' },
             { id: 'users', label: 'Users' },
             { id: 'reports', label: 'Revenue' },
@@ -115,9 +118,13 @@ export default function AdminDashboardPage() {
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as any)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
                 activeTab === tab.id
-                  ? 'bg-rose-600 text-white shadow-md'
+                  ? tab.highlight
+                    ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-900/40 ring-1 ring-white/20'
+                    : 'bg-rose-600 text-white shadow-md'
+                  : tab.highlight
+                  ? 'text-amber-300 hover:text-white bg-amber-500/10 hover:bg-amber-500/20'
                   : 'text-gray-400 hover:text-white'
               }`}
             >
@@ -134,6 +141,11 @@ export default function AdminDashboardPage() {
         </div>
       ) : (
         <>
+          {/* TAB: 10,000 USERS CONCURRENCY & BENCHMARK LAB */}
+          {activeTab === 'benchmark' && (
+            <AdminBenchmarkLab />
+          )}
+
           {/* TAB 1: OVERVIEW */}
           {activeTab === 'overview' && stats && (
             <div className="space-y-8">

@@ -195,9 +195,12 @@ CREATE TABLE IF NOT EXISTS show_seats (
   locked_by       UUID REFERENCES users(id),
   lock_expires_at TIMESTAMPTZ,
   price           DECIMAL(10,2) NOT NULL,
+  version         INTEGER NOT NULL DEFAULT 1,
   updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE(show_id, seat_id)
 );
+
+CREATE INDEX IF NOT EXISTS idx_show_seats_version ON show_seats(version);
 
 CREATE INDEX idx_shows_movie ON shows(movie_id);
 CREATE INDEX idx_shows_screen ON shows(screen_id);

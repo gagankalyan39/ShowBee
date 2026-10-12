@@ -85,13 +85,13 @@ export const showAPI = {
     request<{ success: boolean; data: { show: any; rows: Record<string, any[]>; seats: any[] } }>(
       `/shows/${showId}/seats`
     ),
-  // PESSIMISTIC LOCK
-  holdSeats: (showId: string, seatIds: string[]) =>
-    request<{ success: boolean; message: string; data: { heldSeats: string[]; expiresAt: string } }>(
+  // DUAL LOCK ENGINE: PESSIMISTIC vs OPTIMISTIC
+  holdSeats: (showId: string, seatIds: string[], lockMode: 'PESSIMISTIC' | 'OPTIMISTIC' = 'PESSIMISTIC') =>
+    request<{ success: boolean; message: string; lockMode?: string; data: { heldSeats: string[]; expiresAt: string } }>(
       `/shows/${showId}/seats/hold`,
       {
         method: 'POST',
-        body: JSON.stringify({ seatIds }),
+        body: JSON.stringify({ seatIds, lockMode }),
       }
     ),
   releaseSeats: (showId: string, seatIds: string[]) =>
@@ -140,6 +140,26 @@ export const adminAPI = {
     }),
   getAuditLogs: () => request<{ success: boolean; data: any[] }>('/admin/audit-logs'),
   getRevenueReport: () => request<{ success: boolean; data: any[] }>('/admin/reports/revenue'),
+
+  // 10,000 USER SIMULATION & BENCHMARK SUITE
+  getBenchmarkShows: () => request<{ success: boolean; data: any[] }>('/admin/benchmark/shows'),
+  getBenchmarkSeatMap: (showId: string) => request<{ success: boolean; data: any[] }>(`/admin/benchmark/seat-map/${showId}`),
+  startBenchmark: (data: { totalUsers: number; mode: string; contention: string; showId: string; concurrencyLimit?: number }) =>
+    request<{ success: boolean; message: string; runId: string; config: any }>('/admin/benchmark/start', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  stopBenchmark: (runId: string) =>
+    request<{ success: boolean; stopped: boolean }>('/admin/benchmark/stop', {
+      method: 'POST',
+      body: JSON.stringify({ runId }),
+    }),
+  resetBenchmarkSeats: (showId: string) =>
+    request<{ success: boolean; message: string }>('/admin/benchmark/reset', {
+      method: 'POST',
+      body: JSON.stringify({ showId }),
+    }),
+  getBenchmarkHistory: () => request<{ success: boolean; data: any[] }>('/admin/benchmark/history'),
 };
 
 // ── SYSTEM & 4-MEMBER TEAM API ────────────────────────────

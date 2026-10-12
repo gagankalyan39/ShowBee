@@ -7,7 +7,7 @@ import { SeatItem, DetailedShow } from '@/types';
 import { SeatMap } from '@/components/SeatMap';
 import { useAuth } from '@/context/AuthContext';
 import { useNotifications } from '@/context/NotificationContext';
-import { ArrowLeft, Clock, ShieldCheck, Ticket, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Clock, ShieldCheck, Ticket, AlertCircle, Zap, Lock } from 'lucide-react';
 
 export default function SeatSelectionPage() {
   const params = useParams();
@@ -22,6 +22,7 @@ export default function SeatSelectionPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isHolding, setIsHolding] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [lockMode, setLockMode] = useState<'PESSIMISTIC' | 'OPTIMISTIC'>('PESSIMISTIC');
 
   // Load seats
   const loadSeatsData = async () => {
@@ -134,8 +135,8 @@ export default function SeatSelectionPage() {
 
       const seatIds = selectedSeats.map((s) => s.show_seat_id);
 
-      // 1. Acquire Pessimistic Row Lock (SELECT FOR UPDATE)
-      const holdRes = await showAPI.holdSeats(showId, seatIds);
+      // 1. Acquire Lock via selected Concurrency Engine (Pessimistic or Optimistic)
+      const holdRes = await showAPI.holdSeats(showId, seatIds, lockMode);
 
       if (!holdRes.success) {
         throw new Error(holdRes.message || 'Seat lock failed');
@@ -277,14 +278,47 @@ export default function SeatSelectionPage() {
                 </div>
               )}
 
-              {/* Pessimistic Lock Explainer Box */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-[11px] text-gray-400 space-y-1">
-                <p className="font-semibold text-gray-300 flex items-center gap-1.5">
-                  <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
-                  Pessimistic Seat Locking (Member 3)
-                </p>
-                <p className="text-gray-400 leading-snug">
-                  Clicking below locks your selected seats in PostgreSQL for 5 minutes with ACID transaction safety.
+              {/* Concurrency Lock Mode Selector */}
+              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-[11px] text-gray-400 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-gray-300 flex items-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                    Concurrency Engine
+                  </span>
+                  <span className="text-[10px] text-gray-500 font-mono">Member 3 Engine</span>
+                </div>
+
+                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06]">
+                  <button
+                    type="button"
+                    onClick={() => setLockMode('PESSIMISTIC')}
+                    className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                      lockMode === 'PESSIMISTIC'
+                        ? 'bg-blue-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Lock className="w-3 h-3" />
+                    <span>Pessimistic</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLockMode('OPTIMISTIC')}
+                    className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                      lockMode === 'OPTIMISTIC'
+                        ? 'bg-purple-600 text-white shadow-sm'
+                        : 'text-gray-400 hover:text-white'
+                    }`}
+                  >
+                    <Zap className="w-3 h-3" />
+                    <span>Optimistic</span>
+                  </button>
+                </div>
+
+                <p className="text-[10px] text-gray-400 leading-snug">
+                  {lockMode === 'PESSIMISTIC'
+                    ? 'Acquires PostgreSQL row-level locks (SELECT FOR UPDATE) to serialize seat checkout.'
+                    : 'Uses atomic CAS version checking (v+1) to enable non-blocking seat checkout.'}
                 </p>
               </div>
 

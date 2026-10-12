@@ -80,13 +80,117 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
       return res.status(400).json({ success: false, message: 'This screening has already concluded. Please select an upcoming screening.' });
     }
 
+    const lockMode = (req.body.lockMode || 'PESSIMISTIC').toUpperCase();
+
     // ====================================================
-    // PESSIMISTIC LOCKING — SELECT FOR UPDATE
-    // This is the critical mechanism that prevents double-booking.
-    // Only ONE transaction can hold these rows at a time.
+    // CONCURRENCY CONTROLLER: PESSIMISTIC vs OPTIMISTIC
+    // Both locking systems are fully implemented and selectable.
     // ====================================================
+
+    if (lockMode === 'OPTIMISTIC') {
+      // ────────────────────────────────────────────────────
+      // OPTIMISTIC LOCKING ENGINE (Version-based CAS)
+      // Read without row locks, then atomic Compare-And-Set
+      // ────────────────────────────────────────────────────
+      const readResult = await client.query(`
+        SELECT ss.id, ss.status, ss.locked_by, ss.lock_expires_at, ss.version,
+               se.row_label, se.seat_number
+        FROM show_seats ss
+        JOIN seats se ON ss.seat_id = se.id
+        WHERE ss.id = ANY($1::uuid[]) AND ss.show_id = $2
+      `, [seatIds, showId]);
+
+      const unavailable: string[] = [];
+      const validSeats: any[] = [];
+
+      for (const seat of readResult.rows) {
+        if (seat.status === 'BOOKED') {
+          unavailable.push(`${seat.row_label}${seat.seat_number} (already booked)`);
+        } else if (seat.status === 'HELD' && seat.locked_by !== userId && new Date(seat.lock_expires_at) > new Date()) {
+          unavailable.push(`${seat.row_label}${seat.seat_number} (held by another user)`);
+        } else {
+          validSeats.push(seat);
+        }
+      }
+
+      if (unavailable.length > 0 || validSeats.length !== seatIds.length) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          success: false,
+          lockMode: 'OPTIMISTIC',
+          message: `Optimistic check: Seats no longer available: ${unavailable.join(', ')}`,
+          unavailableSeats: unavailable,
+        });
+      }
+
+      // Atomic Compare-And-Set (CAS) Update
+      let conflictOccurred = false;
+      const toHold: string[] = [];
+
+      for (const seat of validSeats) {
+        const updateRes = await client.query(`
+          UPDATE show_seats
+          SET status = 'HELD',
+              locked_by = $1,
+              lock_expires_at = NOW() + INTERVAL '5 minutes',
+              version = version + 1,
+              updated_at = NOW()
+          WHERE id = $2 
+            AND version = $3 
+            AND (status = 'AVAILABLE' OR (status = 'HELD' AND lock_expires_at <= NOW()) OR locked_by = $1)
+          RETURNING id, version
+        `, [userId, seat.id, seat.version]);
+
+        if (updateRes.rowCount === 0) {
+          conflictOccurred = true;
+          break;
+        }
+        toHold.push(seat.id);
+      }
+
+      if (conflictOccurred) {
+        await client.query('ROLLBACK');
+        return res.status(409).json({
+          success: false,
+          lockMode: 'OPTIMISTIC',
+          conflict: true,
+          message: 'Optimistic Concurrency Conflict: Seat was modified concurrently by another user.',
+        });
+      }
+
+      await client.query('COMMIT');
+
+      // Socket.IO real-time broadcast
+      try {
+        const io = getIO();
+        if (io) {
+          io.emit('seat_status_update', {
+            showId,
+            seatIds: toHold,
+            status: 'HELD',
+            lockMode: 'OPTIMISTIC',
+            lockedBy: userId,
+          });
+        }
+      } catch {}
+
+      return res.json({
+        success: true,
+        lockMode: 'OPTIMISTIC',
+        message: 'Seats held successfully using Optimistic Locking (CAS version match)',
+        data: {
+          heldSeats: toHold,
+          expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+        },
+      });
+    }
+
+    // ────────────────────────────────────────────────────
+    // PESSIMISTIC LOCKING ENGINE (SELECT ... FOR UPDATE)
+    // Exclusive row lock prevents race conditions
+    // ────────────────────────────────────────────────────
     const lockResult = await client.query(`
-      SELECT ss.id, ss.status, ss.locked_by, ss.lock_expires_at,
+      SELECT ss.id, ss.status, ss.locked_by, ss.lock_expires_at, ss.version,
              se.row_label, se.seat_number
       FROM show_seats ss
       JOIN seats se ON ss.seat_id = se.id
@@ -95,14 +199,14 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
     `, [seatIds, showId]);
 
     // Check all requested seats
-    const unavailable = [];
-    const toHold = [];
+    const unavailable: string[] = [];
+    const toHold: string[] = [];
 
     for (const seat of lockResult.rows) {
       if (seat.status === 'BOOKED') {
         unavailable.push(`${seat.row_label}${seat.seat_number} (already booked)`);
       } else if (seat.status === 'HELD') {
-        if (seat.locked_by !== userId && seat.lock_expires_at > new Date()) {
+        if (seat.locked_by !== userId && new Date(seat.lock_expires_at) > new Date()) {
           unavailable.push(`${seat.row_label}${seat.seat_number} (held by another user)`);
         } else {
           toHold.push(seat.id); // expired hold — can re-hold
@@ -116,30 +220,47 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
       await client.query('ROLLBACK');
       return res.status(409).json({
         success: false,
+        lockMode: 'PESSIMISTIC',
         message: `Sorry, these seats are no longer available: ${unavailable.join(', ')}`,
-        unavailableSeats: unavailable
+        unavailableSeats: unavailable,
       });
     }
 
-    // Mark as HELD with 5-minute lock
+    // Mark as HELD with 5-minute lock & increment version
     await client.query(`
       UPDATE show_seats
       SET status = 'HELD',
           locked_by = $1,
           lock_expires_at = NOW() + INTERVAL '5 minutes',
+          version = version + 1,
           updated_at = NOW()
       WHERE id = ANY($2::uuid[])
     `, [userId, toHold]);
 
     await client.query('COMMIT');
 
+    // Socket.IO real-time broadcast
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('seat_status_update', {
+          showId,
+          seatIds: toHold,
+          status: 'HELD',
+          lockMode: 'PESSIMISTIC',
+          lockedBy: userId,
+        });
+      }
+    } catch {}
+
     res.json({
       success: true,
-      message: 'Seats held successfully for 5 minutes',
+      lockMode: 'PESSIMISTIC',
+      message: 'Seats held successfully for 5 minutes (Pessimistic Row Lock)',
       data: {
         heldSeats: toHold,
-        expiresAt: new Date(Date.now() + 5 * 60 * 1000)
-      }
+        expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      },
     });
   } catch (err: any) {
     await client.query('ROLLBACK');

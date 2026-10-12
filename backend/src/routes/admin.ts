@@ -4,6 +4,8 @@
 import { Router, Request, Response } from 'express';
 import { query } from '../db';
 import { requireAuth, requireAdmin } from '../middleware/auth';
+import { concurrencyBenchmarkEngine, SimulationConfig } from '../services/concurrencyBenchmarkService';
+import { v4 as uuidv4 } from 'uuid';
 
 const router = Router();
 
@@ -189,6 +191,136 @@ router.get('/reports/revenue', async (req: Request, res: Response) => {
       ORDER BY total_revenue DESC
     `);
     res.json({ success: true, data: result.rows });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// ============================================================
+// CONCURRENCY BENCHMARK & SIMULATION SUITE (10,000 Users)
+// Pessimistic vs Optimistic Locking Live Simulation
+// ============================================================
+
+// GET /api/admin/benchmark/shows - Candidate shows for benchmark
+router.get('/benchmark/shows', async (_req: Request, res: Response) => {
+  try {
+    const result = await query(`
+      SELECT s.id, s.start_time, m.title as movie_title, t.name as theatre_name, sc.name as screen_name,
+             COUNT(ss.id) as total_seats,
+             COUNT(ss.id) FILTER (WHERE ss.status = 'AVAILABLE') as available_seats,
+             COUNT(ss.id) FILTER (WHERE ss.status = 'BOOKED') as booked_seats
+      FROM shows s
+      JOIN movies m ON s.movie_id = m.id
+      JOIN screens sc ON s.screen_id = sc.id
+      JOIN theatres t ON sc.theatre_id = t.id
+      JOIN show_seats ss ON ss.show_id = s.id
+      GROUP BY s.id, s.start_time, m.title, t.name, sc.name
+      ORDER BY s.start_time DESC
+      LIMIT 10
+    `);
+    res.json({ success: true, data: result.rows });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/benchmark/seat-map/:showId - Live seat states for simulation visualizer
+router.get('/benchmark/seat-map/:showId', async (req: Request, res: Response) => {
+  try {
+    const { showId } = req.params;
+    const result = await query(`
+      SELECT ss.id, ss.status, ss.version, ss.price,
+             se.row_label, se.seat_number, st.name as seat_type
+      FROM show_seats ss
+      JOIN seats se ON ss.seat_id = se.id
+      JOIN seat_types st ON se.seat_type_id = st.id
+      WHERE ss.show_id = $1
+      ORDER BY se.row_label, se.seat_number
+    `, [showId]);
+    res.json({ success: true, data: result.rows });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/benchmark/start - Trigger simulation up to 10,000 users
+router.post('/benchmark/start', async (req: Request, res: Response) => {
+  try {
+    const { 
+      totalUsers = 1000, 
+      mode = 'HEAD_TO_HEAD', 
+      contention = 'HOTSPOT', 
+      showId,
+      concurrencyLimit = 25 
+    } = req.body;
+
+    if (!showId) {
+      return res.status(400).json({ success: false, message: 'showId is required' });
+    }
+
+    const clampedUsers = Math.min(Math.max(Number(totalUsers) || 100, 10), 10000);
+    const runId = `BENCH-${Date.now()}-${uuidv4().substring(0, 6)}`;
+
+    const config: SimulationConfig = {
+      totalUsers: clampedUsers,
+      mode,
+      contention,
+      showId,
+      concurrencyLimit: Number(concurrencyLimit) || 25,
+    };
+
+    // Run simulation asynchronously so response is immediate and progress streams via Socket.IO
+    (async () => {
+      try {
+        if (mode === 'HEAD_TO_HEAD') {
+          await concurrencyBenchmarkEngine.runHeadToHead(runId, config);
+        } else {
+          await concurrencyBenchmarkEngine.runSingleSimulation(runId, config, mode);
+        }
+      } catch (err: any) {
+        console.error('Benchmark execution error:', err);
+      }
+    })();
+
+    res.json({
+      success: true,
+      message: `Simulation initiated for ${clampedUsers} users in ${mode} mode`,
+      runId,
+      config,
+    });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/benchmark/stop - Stop active simulation
+router.post('/benchmark/stop', async (req: Request, res: Response) => {
+  try {
+    const { runId } = req.body;
+    const stopped = concurrencyBenchmarkEngine.abortSimulation(runId);
+    res.json({ success: true, stopped });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/admin/benchmark/reset - Reset seats for a show
+router.post('/benchmark/reset', async (req: Request, res: Response) => {
+  try {
+    const { showId } = req.body;
+    if (!showId) return res.status(400).json({ success: false, message: 'showId required' });
+    await concurrencyBenchmarkEngine.resetShowSeats(showId);
+    res.json({ success: true, message: 'Seats reset to AVAILABLE' });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/admin/benchmark/history - Get past benchmark runs
+router.get('/benchmark/history', async (_req: Request, res: Response) => {
+  try {
+    const history = concurrencyBenchmarkEngine.getHistory();
+    res.json({ success: true, data: history });
   } catch (error: any) {
     res.status(500).json({ success: false, message: error.message });
   }

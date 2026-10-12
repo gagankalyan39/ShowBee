@@ -13,6 +13,12 @@ async function setup() {
     const migrationFile = path.join(__dirname, '../../../database/migrations/001_init_schema.sql');
     const migrationSQL = fs.readFileSync(migrationFile, 'utf8');
     await client.query(migrationSQL);
+
+    const migration2File = path.join(__dirname, '../../../database/migrations/002_add_optimistic_locking.sql');
+    if (fs.existsSync(migration2File)) {
+      const migration2SQL = fs.readFileSync(migration2File, 'utf8');
+      await client.query(migration2SQL);
+    }
     console.log('✅ Schema created successfully');
 
     console.log('🌱 Running seed data...');

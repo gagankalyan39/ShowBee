@@ -2,8 +2,8 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { adminAPI } from '@/lib/api';
-import { useAuth } from '@/context/AuthContext';
+import { adminAPI } from '../../lib/api';
+import { useAuth } from '../../context/AuthContext';
 import { 
   ShieldCheck, 
   TrendingUp, 
@@ -15,12 +15,12 @@ import {
   Lock, 
   Clock, 
   CheckCircle2, 
-  XCircle,
-  FileText,
-  Percent,
-  Zap
+  XCircle, 
+  FileText, 
+  Percent, 
+  Zap 
 } from 'lucide-react';
-import AdminBenchmarkLab from '@/components/AdminBenchmarkLab';
+import AdminBenchmarkLab from '../../components/AdminBenchmarkLab';
 
 export default function AdminDashboardPage() {
   const { user, isAdmin } = useAuth();

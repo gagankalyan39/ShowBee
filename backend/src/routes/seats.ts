@@ -5,6 +5,7 @@
 import { Router, Request, Response } from 'express';
 import { query, getClient } from '../db';
 import { authenticate, AuthRequest } from '../middleware/auth';
+import { getIO } from '../socket';
 
 const router = Router();
 

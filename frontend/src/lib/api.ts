@@ -6,7 +6,12 @@
 export function getApiBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
   if (typeof window !== 'undefined') {
-    return `http://${window.location.hostname}:5000/api`;
+    // If on local machine, connect to local Express backend on port 5000
+    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+      return 'http://localhost:5000/api';
+    }
+    // On Vercel or cloud deployment, use same-origin relative /api
+    return '/api';
   }
   return 'http://localhost:5000/api';
 }

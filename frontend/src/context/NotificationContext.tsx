@@ -1,6 +1,6 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { notificationAPI } from '@/lib/api';
 import { NotificationItem } from '@/types';
@@ -21,6 +21,8 @@ interface NotificationContextType {
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  clearAllNotifications: () => Promise<void>;
+  deleteNotification: (id: string) => Promise<void>;
   socket: Socket | null;
   showToast: (title: string, message: string, type?: string) => void;
   activeToast: ToastData | null;
@@ -35,8 +37,20 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
   const [unreadCount, setUnreadCount] = useState(0);
   const [socket, setSocket] = useState<Socket | null>(null);
   const [activeToast, setActiveToast] = useState<ToastData | null>(null);
+  const toastTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const dismissToast = useCallback(() => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+      toastTimerRef.current = null;
+    }
+    setActiveToast(null);
+  }, []);
 
   const displayToast = useCallback((title: string, message: string, type: string = 'SYSTEM') => {
+    if (toastTimerRef.current) {
+      clearTimeout(toastTimerRef.current);
+    }
     const toast: ToastData = {
       id: `toast_${Date.now()}`,
       title,
@@ -47,9 +61,10 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     setActiveToast(toast);
 
     // Auto dismiss after 6 seconds
-    setTimeout(() => {
+    toastTimerRef.current = setTimeout(() => {
       setActiveToast((curr) => (curr?.id === toast.id ? null : curr));
-    }, 6000);
+      toastTimerRef.current = null;
+    }, 4000);
   }, []);
 
   // Initialize Socket.IO connection
@@ -159,9 +174,26 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
     } catch {}
   };
 
-  const dismissToast = useCallback(() => {
-    setActiveToast(null);
-  }, []);
+  const clearAllNotifications = async () => {
+    try {
+      await notificationAPI.clearAll();
+    } catch (err) {
+      console.warn('Backend clear all notification failed or running in serverless:', err);
+    }
+    setNotifications([]);
+    setUnreadCount(0);
+    dismissToast();
+  };
+
+  const deleteNotification = async (id: string) => {
+    try {
+      await notificationAPI.delete(id);
+    } catch (err) {
+      console.warn('Backend delete notification failed:', err);
+    }
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    setUnreadCount((c) => Math.max(0, c - 1));
+  };
 
   return (
     <NotificationContext.Provider
@@ -170,6 +202,8 @@ export const NotificationProvider: React.FC<{ children: React.ReactNode }> = ({ 
         unreadCount,
         markAsRead,
         markAllAsRead,
+        clearAllNotifications,
+        deleteNotification,
         socket,
         showToast: displayToast,
         activeToast,

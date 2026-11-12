@@ -8,6 +8,7 @@ import { createNotification } from '../services/notificationService';
 import { logAudit } from '../services/auditService';
 import { getIO } from '../socket';
 import { generateBookingRef, generateQR } from '../utils/helpers';
+import { bookingCreations } from '../metrics';
 
 const router = Router();
 
@@ -92,6 +93,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     await client.query('COMMIT');
+    bookingCreations.labels('pending', process.env.ARCHITECTURE_LABEL || 'monolith').inc();
 
     // Dispatch instant notification for reserved seats
     try {
@@ -126,6 +128,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     });
   } catch (err: any) {
+    bookingCreations.labels('failed', process.env.ARCHITECTURE_LABEL || 'monolith').inc();
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, message: err.message });
   } finally {

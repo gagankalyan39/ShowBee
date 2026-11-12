@@ -55,6 +55,16 @@ router.patch('/read-all', authenticate, async (req: AuthRequest, res: Response) 
   }
 });
 
+// DELETE /api/notifications/clear-all — clear all user notifications
+router.delete('/clear-all', authenticate, async (req: AuthRequest, res: Response) => {
+  try {
+    await query('DELETE FROM notifications WHERE user_id=$1', [req.user!.id]);
+    res.json({ success: true, message: 'All notifications cleared' });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 // DELETE /api/notifications/:id
 router.delete('/:id', authenticate, async (req: AuthRequest, res: Response) => {
   try {

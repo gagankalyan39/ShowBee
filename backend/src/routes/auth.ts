@@ -8,6 +8,8 @@ import { query } from '../db';
 import { authenticate, AuthRequest } from '../middleware/auth';
 
 const router = Router();
+const JWT_SECRET = (process.env.JWT_SECRET || 'showbee_super_secret_jwt_key_2024_change_in_production').trim();
+const JWT_EXPIRES_IN = (process.env.JWT_EXPIRES_IN || '7d').trim();
 
 // POST /api/auth/register
 router.post('/register', async (req: Request, res: Response) => {
@@ -29,7 +31,7 @@ router.post('/register', async (req: Request, res: Response) => {
       [name, email.toLowerCase(), phone || null, hash, 'USER']
     );
     const user = result.rows[0];
-    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as any);
+    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as any);
     res.status(201).json({ success: true, message: 'Registered successfully', data: { user, token } });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
@@ -52,7 +54,7 @@ router.post('/login', async (req: Request, res: Response) => {
       return res.status(403).json({ success: false, message: 'Your account has been disabled' });
     }
     await query('UPDATE users SET last_login = NOW() WHERE id = $1', [user.id]);
-    const token = jwt.sign({ userId: user.id, role: user.role }, process.env.JWT_SECRET || 'secret', { expiresIn: process.env.JWT_EXPIRES_IN || '7d' } as any);
+    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN } as any);
     const { password_hash, ...safeUser } = user;
     res.json({ success: true, message: 'Login successful', data: { user: safeUser, token } });
   } catch (err: any) {

@@ -57,19 +57,24 @@ export async function setupSingleScreenTheatres() {
         );
       }
 
-      // Ensure primary screen has standard 100 seats (A-J, 1-10)
+      // Ensure primary screen has standard 100 seats across all 4 tiers:
+      // A-B: REGULAR (front)
+      // C-F: PREMIUM (middle)
+      // G-H: VIP (rear)
+      // I-J: LUXURY RECLINER (very back)
       const rows = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
       for (const r of rows) {
         let typeId = seatTypeRegular;
-        if (['E', 'F', 'G'].includes(r)) typeId = seatTypePremium;
-        else if (['H', 'I'].includes(r)) typeId = seatTypeRecliner;
-        else if (r === 'J') typeId = seatTypeVip;
+        if (['C', 'D', 'E', 'F'].includes(r)) typeId = seatTypePremium;
+        else if (['G', 'H'].includes(r)) typeId = seatTypeVip;
+        else if (['I', 'J'].includes(r)) typeId = seatTypeRecliner;
 
         for (let num = 1; num <= 10; num++) {
           await client.query(
             `INSERT INTO seats (screen_id, seat_type_id, row_label, seat_number, is_active)
              VALUES ($1, $2, $3, $4, true)
-             ON CONFLICT DO NOTHING`,
+             ON CONFLICT (screen_id, row_label, seat_number) DO UPDATE SET
+               seat_type_id = EXCLUDED.seat_type_id`,
             [primaryScreenId, typeId, r, num]
           );
         }

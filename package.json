@@ -10,7 +10,13 @@
     "dev": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
     "start": "npm run start --prefix frontend",
-    "lint": "npm run lint --prefix frontend"
+    "lint": "npm run lint --prefix frontend",
+    "loadtest": "node load-test/concurrent-seats.js",
+    "loadtest:h2h": "node load-test/concurrent-seats.js --users=200 --mode=HEAD_TO_HEAD",
+    "loadtest:arch": "node load-test/concurrent-seats.js --users=500 --architecture=both",
+    "monitoring:up": "docker-compose up -d prometheus grafana",
+    "docker:up": "docker-compose up --build",
+    "docker:down": "docker-compose down"
   },
   "dependencies": {
     "@types/pg": "^8.23.1",

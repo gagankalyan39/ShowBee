@@ -29,6 +29,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (savedToken && savedUser) {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
+
+        // Validate token with backend to avoid stale sessions
+        authAPI.getMe().then((res) => {
+          if (res.success && res.data) {
+            setUser(res.data);
+            try {
+              localStorage.setItem('showbee_user', JSON.stringify(res.data));
+            } catch {}
+          }
+        }).catch(() => {
+          setToken(null);
+          setUser(null);
+          try {
+            localStorage.removeItem('showbee_token');
+            localStorage.removeItem('showbee_user');
+          } catch {}
+        });
       }
     } catch {
       try {
@@ -37,6 +54,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch {}
     }
     setIsLoading(false);
+
+    const handleAuthExpired = () => {
+      setToken(null);
+      setUser(null);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('showbee_auth_expired', handleAuthExpired);
+      return () => {
+        window.removeEventListener('showbee_auth_expired', handleAuthExpired);
+      };
+    }
   }, []);
 
   const login = async (email: string, password: string) => {

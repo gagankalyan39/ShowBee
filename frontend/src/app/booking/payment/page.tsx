@@ -68,6 +68,14 @@ function PaymentContent() {
         throw new Error(res.message || 'Payment was declined by mock gateway');
       }
     } catch (err: any) {
+      const isAuthErr = err.message?.includes('token') || err.message?.includes('401') || err.message?.includes('Unauthorized');
+      if (isAuthErr) {
+        setErrorMessage('Your login session has expired. Redirecting to sign in...');
+        setTimeout(() => {
+          router.push('/auth/login?redirect=' + encodeURIComponent(window.location.pathname + window.location.search));
+        }, 1500);
+        return;
+      }
       setErrorMessage(err.message || 'Payment simulation failed');
     } finally {
       setIsProcessing(false);

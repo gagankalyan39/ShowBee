@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { showAPI, bookingAPI } from '@/lib/api';
 import { SeatItem, DetailedShow } from '@/types';
@@ -108,6 +108,23 @@ export default function SeatSelectionPage() {
     }
   };
 
+  const getSeatCategoryLabel = (rowLabel: string) => {
+    const row = rowLabel.toUpperCase();
+    if (['A', 'B'].includes(row)) return 'Regular';
+    if (['C', 'D', 'E', 'F'].includes(row)) return 'Premium';
+    if (['G', 'H'].includes(row)) return 'VIP';
+    return 'Luxury Recliner';
+  };
+
+  const categoryBreakdown = useMemo(() => {
+    const counts: Record<string, number> = {};
+    selectedSeats.forEach((seat) => {
+      const cat = getSeatCategoryLabel(seat.row_label);
+      counts[cat] = (counts[cat] || 0) + 1;
+    });
+    return counts;
+  }, [selectedSeats]);
+
   const calculateSubtotal = () => {
     return selectedSeats.reduce((sum, s) => sum + parseFloat(s.price as any), 0);
   };
@@ -156,6 +173,14 @@ export default function SeatSelectionPage() {
       router.push(`/booking/payment?bookingId=${bookingRes.data.id}`);
     } catch (err: any) {
       console.error('Seat hold error:', err);
+      const isAuthErr = err.message?.includes('token') || err.message?.includes('401') || err.message?.includes('logged in') || err.message?.includes('Unauthorized') || err.message?.includes('No token');
+      if (isAuthErr) {
+        setErrorMessage('Your login session has expired. Redirecting to sign in to complete your booking...');
+        setTimeout(() => {
+          router.push('/auth/login?redirect=' + encodeURIComponent(window.location.pathname));
+        }, 1500);
+        return;
+      }
       setErrorMessage(err.message || 'Could not hold seats. Another user may have just locked them.');
       loadSeatsData(); // Refresh to show current lock status
     } finally {
@@ -184,11 +209,18 @@ export default function SeatSelectionPage() {
           )}
         </div>
 
-        {/* Pessimistic Lock Indicator */}
-        <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-500/10 border border-blue-500/20 text-blue-300 text-xs font-semibold">
-          <ShieldCheck className="w-4 h-4 text-blue-400" />
-          <span>PostgreSQL Row-Locking</span>
-        </div>
+        {/* Pessimistic vs Optimistic Lock Mode Indicator */}
+        {lockMode === 'PESSIMISTIC' ? (
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-500/15 border border-blue-500/30 text-blue-300 text-xs font-bold shadow-sm shadow-blue-500/10">
+            <Lock className="w-3.5 h-3.5 text-blue-400" />
+            <span>Pessimistic: PostgreSQL Row-Lock (SELECT FOR UPDATE)</span>
+          </div>
+        ) : (
+          <div className="hidden sm:flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-purple-500/15 border border-purple-500/30 text-purple-300 text-xs font-bold shadow-sm shadow-purple-500/10">
+            <Zap className="w-3.5 h-3.5 text-purple-400" />
+            <span>Optimistic: Atomic CAS Versioning (v → v+1)</span>
+          </div>
+        )}
       </div>
 
       {/* Concluded Screening Banner */}
@@ -233,6 +265,7 @@ export default function SeatSelectionPage() {
               rows={rows}
               selectedSeats={selectedSeats}
               onToggleSeat={toggleSeat}
+              lockMode={lockMode}
             />
           </div>
 
@@ -254,72 +287,125 @@ export default function SeatSelectionPage() {
                     {selectedSeats.map((seat) => (
                       <span
                         key={seat.show_seat_id}
-                        className="px-3 py-1 rounded-xl bg-rose-600/20 border border-rose-500/40 text-rose-300 text-xs font-bold"
+                        className={`px-3 py-1.5 rounded-xl border text-xs font-bold flex items-center gap-1.5 shadow-sm ${
+                          lockMode === 'OPTIMISTIC'
+                            ? 'bg-purple-600/20 border-purple-500/40 text-purple-200'
+                            : 'bg-blue-600/20 border-blue-500/40 text-blue-200'
+                        }`}
                       >
-                        {seat.row_label}{seat.seat_number} (₹{seat.price})
+                        <span className="text-white font-black">{seat.row_label}{seat.seat_number}</span>
+                        <span className="font-bold">₹{Math.round(Number(seat.price))}</span>
+                        <span className="text-[10px] opacity-75 font-normal">• {getSeatCategoryLabel(seat.row_label)}</span>
+                        {lockMode === 'OPTIMISTIC' ? (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-purple-900/90 text-purple-300 border border-purple-400/40 font-bold">
+                            CAS v{seat.version || 1}
+                          </span>
+                        ) : (
+                          <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-900/90 text-blue-300 border border-blue-400/40 font-bold">
+                            🔒 Lock
+                          </span>
+                        )}
                       </span>
                     ))}
                   </div>
 
                   <div className="border-t border-white/[0.08] pt-3 space-y-2 text-xs">
-                    <div className="flex justify-between text-gray-400">
-                      <span>Subtotal</span>
-                      <span className="font-semibold text-white">₹{calculateSubtotal()}</span>
+                    <div className="flex justify-between text-gray-300">
+                      <span>Subtotal ({selectedSeats.length} {selectedSeats.length === 1 ? 'seat' : 'seats'})</span>
+                      <span className="font-bold text-white">₹{calculateSubtotal()}</span>
                     </div>
-                    <div className="flex justify-between text-gray-400">
+                    {(Object.entries(categoryBreakdown) as [string, number][]).map(([cat, count]) => {
+                      const catTotal = selectedSeats
+                        .filter((s) => getSeatCategoryLabel(s.row_label) === cat)
+                        .reduce((sum, s) => sum + Math.round(Number(s.price)), 0);
+                      return (
+                        <div key={cat} className="flex justify-between text-gray-400 text-[11px] pl-2 border-l border-white/10">
+                          <span>{cat} ({count}x)</span>
+                          <span className="font-medium text-gray-300">₹{catTotal}</span>
+                        </div>
+                      );
+                    })}
+                    <div className="flex justify-between text-gray-400 pt-1">
                       <span>Convenience Fee (incl. GST)</span>
                       <span className="font-semibold text-white">₹30</span>
                     </div>
                     <div className="flex justify-between text-sm font-bold text-white pt-2 border-t border-white/[0.06]">
                       <span>Total Amount</span>
-                      <span className="text-rose-400">₹{calculateSubtotal() + 30}</span>
+                      <span className="text-rose-400 font-extrabold">₹{calculateSubtotal() + 30}</span>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* Concurrency Lock Mode Selector */}
-              <div className="p-3.5 rounded-2xl bg-white/[0.03] border border-white/[0.06] text-[11px] text-gray-400 space-y-2.5">
+              {/* Concurrency Strategy Comparison Panel */}
+              <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/[0.08] text-[11px] space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="font-semibold text-gray-300 flex items-center gap-1.5">
-                    <ShieldCheck className="w-3.5 h-3.5 text-blue-400" />
+                  <span className="font-bold text-white flex items-center gap-1.5 text-xs">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400" />
                     Concurrency Engine
                   </span>
-                  <span className="text-[10px] text-gray-500 font-mono">Member 3 Engine</span>
+                  <span className={`text-[10px] font-mono font-bold px-2 py-0.5 rounded-full ${
+                    lockMode === 'OPTIMISTIC' ? 'bg-purple-950 text-purple-300 border border-purple-500/30' : 'bg-blue-950 text-blue-300 border border-blue-500/30'
+                  }`}>
+                    {lockMode === 'OPTIMISTIC' ? 'Version-CAS Engine' : 'Row-Lock Engine'}
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-black/40 border border-white/[0.06]">
+                <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
                     onClick={() => setLockMode('PESSIMISTIC')}
-                    className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                    className={`p-3 rounded-xl text-left border transition-all ${
                       lockMode === 'PESSIMISTIC'
-                        ? 'bg-blue-600 text-white shadow-sm'
-                        : 'text-gray-400 hover:text-white'
+                        ? 'bg-blue-600/25 border-blue-400 text-white shadow-md shadow-blue-500/25 ring-1 ring-blue-400/60'
+                        : 'bg-black/30 border-white/[0.06] text-gray-400 hover:text-white hover:border-white/20'
                     }`}
                   >
-                    <Lock className="w-3 h-3" />
-                    <span>Pessimistic</span>
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-blue-300">
+                      <Lock className="w-3.5 h-3.5 text-blue-400" />
+                      <span>Pessimistic</span>
+                    </div>
+                    <span className="text-[10px] text-gray-300 block mt-1 font-mono">SELECT FOR UPDATE</span>
+                    <span className="text-[9px] text-blue-400 block mt-0.5 font-semibold">🔒 Exclusive Lock Pin</span>
                   </button>
+
                   <button
                     type="button"
                     onClick={() => setLockMode('OPTIMISTIC')}
-                    className={`py-1.5 px-2 rounded-lg text-[10px] font-bold flex items-center justify-center gap-1 transition-all ${
+                    className={`p-3 rounded-xl text-left border transition-all ${
                       lockMode === 'OPTIMISTIC'
-                        ? 'bg-purple-600 text-white shadow-sm'
-                        : 'text-gray-400 hover:text-white'
+                        ? 'bg-purple-600/25 border-purple-400 text-white shadow-md shadow-purple-500/25 ring-1 ring-purple-400/60'
+                        : 'bg-black/30 border-white/[0.06] text-gray-400 hover:text-white hover:border-white/20'
                     }`}
                   >
-                    <Zap className="w-3 h-3" />
-                    <span>Optimistic</span>
+                    <div className="flex items-center gap-1.5 font-bold text-xs text-purple-300">
+                      <Zap className="w-3.5 h-3.5 text-purple-400" />
+                      <span>Optimistic</span>
+                    </div>
+                    <span className="text-[10px] text-gray-300 block mt-1 font-mono">Atomic CAS (v + 1)</span>
+                    <span className="text-[9px] text-purple-400 block mt-0.5 font-semibold">⚡ Version Counter</span>
                   </button>
                 </div>
 
-                <p className="text-[10px] text-gray-400 leading-snug">
-                  {lockMode === 'PESSIMISTIC'
-                    ? 'Acquires PostgreSQL row-level locks (SELECT FOR UPDATE) to serialize seat checkout.'
-                    : 'Uses atomic CAS version checking (v+1) to enable non-blocking seat checkout.'}
-                </p>
+                {lockMode === 'PESSIMISTIC' ? (
+                  <div className="p-2.5 rounded-xl bg-blue-950/40 border border-blue-500/30 text-[10px] text-blue-200/90 space-y-1">
+                    <p className="font-bold text-blue-300 flex items-center gap-1">
+                      <span>🔒 How Pessimistic Locking Works:</span>
+                    </p>
+                    <p className="leading-relaxed">
+                      Holds an exclusive physical lock on the database row (<code className="text-blue-300 font-mono">SELECT FOR UPDATE</code>). Competing transactions for the same seat are blocked in PostgreSQL FIFO queue until your hold expires or completes.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="p-2.5 rounded-xl bg-purple-950/40 border border-purple-500/30 text-[10px] text-purple-200/90 space-y-1">
+                    <p className="font-bold text-purple-300 flex items-center gap-1">
+                      <span>⚡ How Optimistic Locking Works:</span>
+                    </p>
+                    <p className="leading-relaxed">
+                      Zero row locks during selection. Each seat tracks an atomic version (<code className="text-purple-300 font-mono">v1, v2</code>). When checking out, it executes <code className="text-purple-300 font-mono">WHERE id=$id AND version=$v</code>. If another user committed first, version conflict aborts safely.
+                    </p>
+                  </div>
+                )}
               </div>
 
               {/* Proceed Button */}
@@ -335,10 +421,24 @@ export default function SeatSelectionPage() {
                 ) : isHolding ? (
                   <>
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Locking Seats (PostgreSQL)...</span>
+                    <span>
+                      {lockMode === 'PESSIMISTIC'
+                        ? 'Acquiring PostgreSQL Row Lock...'
+                        : 'Validating Version & Executing CAS...'}
+                    </span>
                   </>
+                ) : !user ? (
+                  <span>Sign In & Proceed (₹{calculateSubtotal() > 0 ? calculateSubtotal() + 30 : 0})</span>
+                ) : lockMode === 'PESSIMISTIC' ? (
+                  <span className="flex items-center gap-1.5">
+                    <Lock className="w-4 h-4" />
+                    Hold via Row-Lock (₹{calculateSubtotal() > 0 ? calculateSubtotal() + 30 : 0})
+                  </span>
                 ) : (
-                  <span>Hold Seats & Proceed (₹{calculateSubtotal() > 0 ? calculateSubtotal() + 30 : 0})</span>
+                  <span className="flex items-center gap-1.5">
+                    <Zap className="w-4 h-4" />
+                    Commit via Atomic CAS (₹{calculateSubtotal() > 0 ? calculateSubtotal() + 30 : 0})
+                  </span>
                 )}
               </button>
 

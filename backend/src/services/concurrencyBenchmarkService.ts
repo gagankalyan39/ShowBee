@@ -8,6 +8,7 @@
 import { getClient, query } from '../db';
 import { getIO } from '../socket';
 import { v4 as uuidv4 } from 'uuid';
+import { seatLockAttempts, seatLockConflicts, seatLockSuccess, seatLockDuration, benchmarkRuns, benchmarkUsers } from '../metrics';
 
 export type LockMode = 'PESSIMISTIC' | 'OPTIMISTIC';
 export type ContentionMode = 'HOTSPOT' | 'DISTRIBUTED' | 'FLASH_SALE';
@@ -502,6 +503,9 @@ class ConcurrencyBenchmarkEngine {
    */
   private async executePessimisticAttempt(showSeatId: string, userId: string): Promise<'SUCCESS' | 'CONFLICT'> {
     const client = await getClient();
+    const timer = seatLockDuration.startTimer({ mode: 'pessimistic', architecture: 'monolith' });
+    seatLockAttempts.inc({ mode: 'pessimistic', architecture: 'monolith' });
+
     try {
       await client.query('BEGIN');
 
@@ -515,6 +519,8 @@ class ConcurrencyBenchmarkEngine {
 
       if (!lockRes.rows.length) {
         await client.query('ROLLBACK');
+        timer();
+        seatLockConflicts.inc({ mode: 'pessimistic', architecture: 'monolith' });
         return 'CONFLICT';
       }
 
@@ -522,6 +528,8 @@ class ConcurrencyBenchmarkEngine {
       if (seat.status !== 'AVAILABLE') {
         // Seat already claimed or booked by prior locked transaction
         await client.query('ROLLBACK');
+        timer();
+        seatLockConflicts.inc({ mode: 'pessimistic', architecture: 'monolith' });
         return 'CONFLICT';
       }
 
@@ -537,9 +545,12 @@ class ConcurrencyBenchmarkEngine {
       `, [userId, showSeatId]);
 
       await client.query('COMMIT');
+      timer();
+      seatLockSuccess.inc({ mode: 'pessimistic', architecture: 'monolith' });
       return 'SUCCESS';
     } catch (err) {
       await client.query('ROLLBACK').catch(() => {});
+      timer();
       throw err;
     } finally {
       client.release();
@@ -552,6 +563,9 @@ class ConcurrencyBenchmarkEngine {
    */
   private async executeOptimisticAttempt(showSeatId: string, userId: string): Promise<'SUCCESS' | 'CONFLICT'> {
     const client = await getClient();
+    const timer = seatLockDuration.startTimer({ mode: 'optimistic', architecture: 'monolith' });
+    seatLockAttempts.inc({ mode: 'optimistic', architecture: 'monolith' });
+
     try {
       // 1. Non-locking read: Fetch state and current version
       const readRes = await client.query(`
@@ -560,10 +574,16 @@ class ConcurrencyBenchmarkEngine {
         WHERE id = $1
       `, [showSeatId]);
 
-      if (!readRes.rows.length) return 'CONFLICT';
+      if (!readRes.rows.length) {
+        timer();
+        seatLockConflicts.inc({ mode: 'optimistic', architecture: 'monolith' });
+        return 'CONFLICT';
+      }
       const seat = readRes.rows[0];
 
       if (seat.status !== 'AVAILABLE') {
+        timer();
+        seatLockConflicts.inc({ mode: 'optimistic', architecture: 'monolith' });
         return 'CONFLICT';
       }
 
@@ -582,9 +602,13 @@ class ConcurrencyBenchmarkEngine {
 
       if (updateRes.rowCount === 0) {
         // Version mismatch or concurrent state shift -> Optimistic Collision!
+        timer();
+        seatLockConflicts.inc({ mode: 'optimistic', architecture: 'monolith' });
         return 'CONFLICT';
       }
 
+      timer();
+      seatLockSuccess.inc({ mode: 'optimistic', architecture: 'monolith' });
       return 'SUCCESS';
     } finally {
       client.release();

@@ -4,7 +4,7 @@
 // Member 1 (UI Integration), Member 2 (Movies/Data),
 // Member 3 (Pessimistic Locking & Bookings), Member 4 (Admin/Realtime)
 // ============================================================
-import express from 'express';
+import express, { Request, Response } from 'express';
 import http from 'http';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -13,16 +13,21 @@ import path from 'path';
 import dotenv from 'dotenv';
 
 dotenv.config();
+process.env.ARCHITECTURE_LABEL = process.env.ARCHITECTURE_LABEL || 'monolith';
 
 // Middlewares
 import { errorHandler } from './middleware/errorHandler';
+import { metricsMiddleware } from './middleware/metrics';
+import { register, dbPoolActive, dbPoolWaiting } from './metrics';
+import pool from './db';
 
 // Socket.IO
 import { initSocket } from './socket';
 
-// Background Cron Services
+// Background Cron Services & Database Sync
 import { startSeatLockCleanupJob } from './services/seatLockService';
 import { startShowLifecycleService } from './services/showLifecycleService';
+import { syncSeatHierarchy } from './services/seatHierarchySyncService';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -42,16 +47,18 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 initSocket(server);
 
-// Start background cron jobs
+// Start background cron jobs & sync seat hierarchy
 startSeatLockCleanupJob();
 startShowLifecycleService();
+syncSeatHierarchy();
 
 // Global Middlewares
 app.use(helmet({ crossOriginResourcePolicy: false }));
 app.use(cors({ origin: '*' }));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(morgan('dev'));
+app.use(metricsMiddleware);
 
 // Static files for movie posters & assets
 const postersPath = path.join(__dirname, '../../frontend/public/movies');
@@ -65,6 +72,19 @@ app.get('/health', (_req, res) => {
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
   });
+});
+
+// Prometheus metrics endpoint
+app.get('/metrics', async (_req: Request, res: Response) => {
+  try {
+    const ARCHITECTURE = process.env.ARCHITECTURE_LABEL || 'monolith';
+    dbPoolActive.labels(ARCHITECTURE).set((pool as any).totalCount || 0);
+    dbPoolWaiting.labels(ARCHITECTURE).set((pool as any).waitingCount || 0);
+    res.set('Content-Type', register.contentType);
+    res.end(await register.metrics());
+  } catch (err: any) {
+    res.status(500).end(err.message);
+  }
 });
 
 // API Routes

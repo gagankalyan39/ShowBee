@@ -6,6 +6,7 @@ import { Router, Request, Response } from 'express';
 import { query, getClient } from '../db';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { getIO } from '../socket';
+import { seatLockAttempts, seatLockConflicts, seatLockSuccess, seatLockDuration } from '../metrics';
 
 const router = Router();
 
@@ -33,7 +34,7 @@ router.get('/:id/seats', async (req: Request, res: Response) => {
     `, [id]);
 
     const seats = await query(`
-      SELECT ss.id AS show_seat_id, ss.status, ss.price, ss.locked_by,
+      SELECT ss.id AS show_seat_id, ss.status, ss.price, ss.locked_by, ss.version,
              se.id AS seat_id, se.row_label, se.seat_number,
              st.name AS seat_type, st.price_multiplier
       FROM show_seats ss
@@ -67,6 +68,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
   }
 
   const client = await getClient();
+  let lockTimer: any = null;
   try {
     await client.query('BEGIN');
 
@@ -82,6 +84,10 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
     }
 
     const lockMode = (req.body.lockMode || 'PESSIMISTIC').toUpperCase();
+    const ARCH = process.env.ARCHITECTURE_LABEL || 'monolith';
+    const lockModeLabel = lockMode.toLowerCase();
+    seatLockAttempts.labels(lockModeLabel, ARCH).inc();
+    lockTimer = seatLockDuration.labels(lockModeLabel, ARCH).startTimer();
 
     // ====================================================
     // CONCURRENCY CONTROLLER: PESSIMISTIC vs OPTIMISTIC
@@ -116,6 +122,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
 
       if (unavailable.length > 0 || validSeats.length !== seatIds.length) {
         await client.query('ROLLBACK');
+        seatLockConflicts.labels(lockModeLabel, ARCH).inc(); lockTimer();
         return res.status(409).json({
           success: false,
           lockMode: 'OPTIMISTIC',
@@ -151,6 +158,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
 
       if (conflictOccurred) {
         await client.query('ROLLBACK');
+        seatLockConflicts.labels(lockModeLabel, ARCH).inc(); lockTimer();
         return res.status(409).json({
           success: false,
           lockMode: 'OPTIMISTIC',
@@ -175,6 +183,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
         }
       } catch {}
 
+      seatLockSuccess.labels(lockModeLabel, ARCH).inc(); lockTimer();
       return res.json({
         success: true,
         lockMode: 'OPTIMISTIC',
@@ -219,6 +228,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
 
     if (unavailable.length > 0) {
       await client.query('ROLLBACK');
+      seatLockConflicts.labels(lockModeLabel, ARCH).inc(); lockTimer();
       return res.status(409).json({
         success: false,
         lockMode: 'PESSIMISTIC',
@@ -254,6 +264,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
       }
     } catch {}
 
+    seatLockSuccess.labels(lockModeLabel, ARCH).inc(); lockTimer();
     res.json({
       success: true,
       lockMode: 'PESSIMISTIC',
@@ -264,6 +275,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
       },
     });
   } catch (err: any) {
+    try { lockTimer(); } catch {}
     await client.query('ROLLBACK');
     console.error('Seat hold error:', err);
     res.status(500).json({ success: false, message: err.message });

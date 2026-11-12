@@ -1,3 +1,4 @@
+import { register } from '../metrics';
 // ============================================================
 // SYSTEM & 4-MEMBER TEAM ARCHITECTURE ROUTE
 // Architecture Designed by Member 3 (System Architect)
@@ -279,4 +280,59 @@ router.post('/test-concurrency', async (_req: Request, res: Response) => {
   }
 });
 
+
+// GET /api/system/observatory — Structured Prometheus metrics for live In-App Grafana
+router.get('/observatory', async (_req: Request, res: Response) => {
+  try {
+    const rawMetrics = await register.getMetricsAsJSON();
+    
+    // Quick probe for external Grafana and Prometheus
+    let grafanaAlive = false;
+    let prometheusAlive = false;
+    try {
+      const gRes = await fetch('http://localhost:3001/api/health', { signal: AbortSignal.timeout(400) });
+      grafanaAlive = gRes.ok;
+    } catch {}
+    try {
+      const pRes = await fetch('http://localhost:9090/-/healthy', { signal: AbortSignal.timeout(400) });
+      prometheusAlive = pRes.ok;
+    } catch {}
+
+    // Extract key metrics
+    const findMetric = (name: string) => rawMetrics.find((m: any) => m.name === name);
+    
+    const attempts = findMetric('showbee_seat_lock_attempts_total');
+    const conflicts = findMetric('showbee_seat_lock_conflicts_total');
+    const success = findMetric('showbee_seat_lock_success_total');
+    const poolActive = findMetric('showbee_db_pool_active_connections');
+    const poolWaiting = findMetric('showbee_db_pool_waiting_count');
+    const bookings = findMetric('showbee_booking_creations_total');
+    const payments = findMetric('showbee_payment_outcomes_total');
+
+    res.json({
+      success: true,
+      timestamp: new Date().toISOString(),
+      services: {
+        monolith: true,
+        microservice: false, // will update if microservice responds
+        grafana: grafanaAlive,
+        prometheus: prometheusAlive,
+      },
+      metrics: {
+        raw: rawMetrics,
+        summary: {
+          attempts: attempts?.values || [],
+          conflicts: conflicts?.values || [],
+          success: success?.values || [],
+          poolActive: poolActive?.values || [],
+          poolWaiting: poolWaiting?.values || [],
+          bookings: bookings?.values || [],
+          payments: payments?.values || [],
+        }
+      }
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 export default router;

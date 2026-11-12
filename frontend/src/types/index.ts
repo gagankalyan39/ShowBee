@@ -94,6 +94,7 @@ export interface SeatItem {
   price: number | string;
   status: 'AVAILABLE' | 'HELD' | 'BOOKED';
   locked_by?: string;
+  version?: number;
 }
 
 export interface BookingSeat {

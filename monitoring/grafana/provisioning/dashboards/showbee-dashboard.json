@@ -1,0 +1,397 @@
+{
+  "title": "SHOWBEE — Locking & Architecture Observatory",
+  "uid": "showbee-main",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "🔒 Seat Lock Attempts/sec (Pessimistic vs Optimistic)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\"}[1m]))",
+          "legendFormat": "Pessimistic Attempts/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\"}[1m]))",
+          "legendFormat": "Optimistic Attempts/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 2,
+      "title": "⚡ Lock Conflicts/sec by Mode",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"pessimistic\"}[1m]))",
+          "legendFormat": "Pessimistic Conflicts/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"optimistic\"}[1m]))",
+          "legendFormat": "Optimistic Conflicts/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 3,
+      "title": "⏱ Lock Duration p50/p95/p99 — Pessimistic",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"pessimistic\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p50 Pessimistic",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"pessimistic\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p95 Pessimistic",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"pessimistic\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p99 Pessimistic",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 4,
+      "title": "⏱ Lock Duration p50/p95/p99 — Optimistic",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"optimistic\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p50 Optimistic",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"optimistic\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p95 Optimistic",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"optimistic\"}[1m])) by (le)) * 1000",
+          "legendFormat": "p99 Optimistic",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 5,
+      "title": "🏗 HTTP Latency: Monolith vs Microservice (p95)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 24,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{job=\"showbee-monolith\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Monolith p95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{job=\"showbee-booking-microservice\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Microservice p95",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(showbee_http_request_duration_seconds_bucket{job=\"showbee-monolith\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Monolith p50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(showbee_http_request_duration_seconds_bucket{job=\"showbee-booking-microservice\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Microservice p50",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 6,
+      "title": "✅ Booking Success Rate",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_booking_creations_total[1m]))",
+          "legendFormat": "Bookings/s",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 7,
+      "title": "💳 Payment Success Rate",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 24,
+        "w": 6,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "clamp_max((sum(rate(showbee_payment_outcomes_total{status=\"success\"}[1m])) / (sum(rate(showbee_payment_outcomes_total[1m])) + 0.001)) * 100, 100)",
+          "legendFormat": "Payment Success %",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 8,
+      "title": "🗄 DB Pool — Active Connections",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(showbee_db_pool_active_connections{job=\"showbee-monolith\"})",
+          "legendFormat": "Monolith Pool",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "sum(showbee_db_pool_active_connections{job=\"showbee-booking-microservice\"})",
+          "legendFormat": "Microservice Pool",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 9,
+      "title": "🔁 Conflict Rate % — Pessimistic",
+      "type": "gauge",
+      "gridPos": {
+        "x": 0,
+        "y": 28,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "clamp_max((sum(rate(showbee_seat_lock_conflicts_total{mode=\"pessimistic\"}[1m])) / (sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\"}[1m])) + 0.001)) * 100, 100)",
+          "legendFormat": "Pessimistic Conflict %",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "minVizWidth": 75
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 10,
+      "title": "🔁 Conflict Rate % — Optimistic",
+      "type": "gauge",
+      "gridPos": {
+        "x": 12,
+        "y": 28,
+        "w": 12,
+        "h": 6
+      },
+      "targets": [
+        {
+          "expr": "clamp_max((sum(rate(showbee_seat_lock_conflicts_total{mode=\"optimistic\"}[1m])) / (sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\"}[1m])) + 0.001)) * 100, 100)",
+          "legendFormat": "Optimistic Conflict %",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "minVizWidth": 75
+      },
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    }
+  ]
+}

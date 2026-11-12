@@ -2,6 +2,8 @@
 // MEMBER 2 - Movie/Data: Movie Routes (Modular Monolith - Movie Module)
 // ============================================================
 import { Router, Request, Response } from 'express';
+import fs from 'fs';
+import path from 'path';
 import { query } from '../db';
 import { authenticate, requireAdmin, AuthRequest } from '../middleware/auth';
 import { createNotificationForAllUsers } from '../services/notificationService';
@@ -9,6 +11,54 @@ import { logAudit } from '../services/auditService';
 import { getIO } from '../socket';
 
 const router = Router();
+
+// POST /api/movies/upload — Upload image (Base64 dataUrl -> file or dataUrl fallback)
+router.post('/upload', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { dataUrl, filename: originalFilename } = req.body;
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      return res.status(400).json({ success: false, message: 'dataUrl is required' });
+    }
+
+    if (!dataUrl.startsWith('data:image/')) {
+      return res.json({ success: true, url: dataUrl });
+    }
+
+    try {
+      const match = dataUrl.match(/^data:image\/([a-zA-Z0-9+]+);base64,(.+)$/);
+      if (!match) {
+        return res.json({ success: true, url: dataUrl });
+      }
+
+      let ext = match[1].toLowerCase();
+      if (ext === 'jpeg') ext = 'jpg';
+      if (ext === 'svg+xml') ext = 'svg';
+      const base64Data = match[2];
+      const buffer = Buffer.from(base64Data, 'base64');
+
+      const uploadsDir = path.resolve(process.cwd(), '../frontend/public/movies/uploads');
+      if (!fs.existsSync(uploadsDir)) {
+        fs.mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      const safeBase = (originalFilename || 'movie-img')
+        .replace(/[^a-zA-Z0-9-_]/g, '_')
+        .slice(0, 30);
+      const filename = `${Date.now()}-${safeBase}.${ext}`;
+      const filePath = path.join(uploadsDir, filename);
+
+      fs.writeFileSync(filePath, buffer);
+
+      const publicUrl = `/movies/uploads/${filename}`;
+      return res.json({ success: true, url: publicUrl, filename });
+    } catch (fsErr: any) {
+      console.warn('Could not save to disk, using data URL fallback:', fsErr.message);
+      return res.json({ success: true, url: dataUrl });
+    }
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
 
 // GET /api/movies — with filters
 router.get('/', async (req: Request, res: Response) => {
@@ -161,28 +211,102 @@ router.post('/', authenticate, requireAdmin, async (req: AuthRequest, res: Respo
   }
 });
 
-// PUT /api/movies/:id — admin update
+// PUT /api/movies/:id — admin update (Movie details, poster, banner, trailer, and gallery images)
 router.put('/:id', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
   try {
     const { id } = req.params;
-    const { title, synopsis, director, writer, duration_mins, release_date, rating,
-      language_code, country, trailer_url, poster_url, banner_url, status } = req.body;
+    const { 
+      title, synopsis, director, writer, duration_mins, release_date, rating,
+      language_code, country, trailer_url, poster_url, banner_url, status,
+      is_published, is_trending, gallery_images 
+    } = req.body;
 
     const langResult = language_code ? await query('SELECT id FROM languages WHERE code = $1', [language_code]) : { rows: [{}] };
     const language_id = langResult.rows[0]?.id;
 
     const result = await query(`
-      UPDATE movies SET title=$1, synopsis=$2, director=$3, writer=$4, duration_mins=$5,
-        release_date=$6, rating=$7, language_id=COALESCE($8, language_id), country=$9,
-        trailer_url=$10, poster_url=$11, banner_url=$12, status=$13, updated_at=NOW()
-      WHERE id=$14 RETURNING *
-    `, [title, synopsis, director, writer, duration_mins, release_date, rating,
-        language_id, country, trailer_url, poster_url, banner_url, status, id]);
+      UPDATE movies SET 
+        title = COALESCE($1, title), 
+        synopsis = COALESCE($2, synopsis), 
+        director = COALESCE($3, director), 
+        writer = COALESCE($4, writer), 
+        duration_mins = COALESCE($5, duration_mins),
+        release_date = COALESCE($6, release_date), 
+        rating = COALESCE($7, rating), 
+        language_id = COALESCE($8, language_id), 
+        country = COALESCE($9, country),
+        trailer_url = COALESCE($10, trailer_url), 
+        poster_url = COALESCE($11, poster_url), 
+        banner_url = COALESCE($12, banner_url), 
+        status = COALESCE($13, status),
+        is_published = COALESCE($14, is_published),
+        is_trending = COALESCE($15, is_trending),
+        updated_at = NOW()
+      WHERE id = $16 RETURNING *
+    `, [
+      title, synopsis, director, writer, duration_mins, release_date, rating,
+      language_id, country, trailer_url, poster_url, banner_url, status,
+      is_published, is_trending, id
+    ]);
 
     if (!result.rows[0]) return res.status(404).json({ success: false, message: 'Movie not found' });
 
-    await logAudit(req.user!.id, 'MOVIE_UPDATED', 'movies', id as any, { title });
-    res.json({ success: true, data: result.rows[0] });
+    // Update gallery images if provided
+    if (Array.isArray(gallery_images)) {
+      await query('DELETE FROM movie_images WHERE movie_id = $1', [id]);
+      for (const imgUrl of gallery_images) {
+        if (imgUrl && typeof imgUrl === 'string' && imgUrl.trim()) {
+          await query(
+            'INSERT INTO movie_images (movie_id, url, image_type) VALUES ($1, $2, $3)',
+            [id, imgUrl.trim(), 'GALLERY']
+          );
+        }
+      }
+    }
+
+    // Fetch refreshed movie with images
+    const refreshed = await query(`
+      SELECT m.*, 
+        COALESCE(json_agg(DISTINCT jsonb_build_object('id', mi.id, 'url', mi.url, 'type', mi.image_type)) FILTER (WHERE mi.id IS NOT NULL), '[]') AS images
+      FROM movies m
+      LEFT JOIN movie_images mi ON mi.movie_id = m.id
+      WHERE m.id = $1
+      GROUP BY m.id
+    `, [id]);
+
+    await logAudit(req.user!.id, 'MOVIE_UPDATED', 'movies', id as any, { title: result.rows[0].title });
+    res.json({ success: true, message: 'Movie and media updated successfully', data: refreshed.rows[0] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// POST /api/movies/:id/images — Add image to movie gallery
+router.post('/:id/images', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { url, image_type = 'GALLERY' } = req.body;
+    if (!url) return res.status(400).json({ success: false, message: 'Image URL is required' });
+
+    const result = await query(
+      'INSERT INTO movie_images (movie_id, url, image_type) VALUES ($1, $2, $3) RETURNING *',
+      [id, url.trim(), image_type]
+    );
+
+    await logAudit(req.user!.id, 'MOVIE_IMAGE_ADDED', 'movie_images', result.rows[0].id, { movieId: id, url });
+    res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err: any) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// DELETE /api/movies/:id/images/:imageId — Remove image from movie gallery
+router.delete('/:id/images/:imageId', authenticate, requireAdmin, async (req: AuthRequest, res: Response) => {
+  try {
+    const { id, imageId } = req.params;
+    await query('DELETE FROM movie_images WHERE id = $1 AND movie_id = $2', [imageId, id]);
+    await logAudit(req.user!.id, 'MOVIE_IMAGE_DELETED', 'movie_images', imageId as any, { movieId: id });
+    res.json({ success: true, message: 'Image removed successfully' });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }

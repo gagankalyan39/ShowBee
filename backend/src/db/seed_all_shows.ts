@@ -113,26 +113,39 @@ async function seedAllShows() {
     }
     console.log('✅ Verified screens for all theatres');
 
-    // 3. Ensure Seats for all screens
+    // 3. Ensure Seats for all screens with exact hierarchy:
+    // Rows A-B: REGULAR (closest to screen)
+    // Rows C-F: PREMIUM (middle prime rows)
+    // Rows G-H: VIP (rear prime view)
+    // Rows I-J: LUXURY RECLINER (very back)
     const allScreens = await client.query(`SELECT id FROM screens`);
     const seatTypeRegular = (await client.query(`SELECT id FROM seat_types WHERE name='REGULAR'`)).rows[0]?.id || 1;
     const seatTypePremium = (await client.query(`SELECT id FROM seat_types WHERE name='PREMIUM'`)).rows[0]?.id || 2;
+    const seatTypeRecliner = (await client.query(`SELECT id FROM seat_types WHERE name='RECLINER'`)).rows[0]?.id || 3;
+    const seatTypeVip = (await client.query(`SELECT id FROM seat_types WHERE name='VIP'`)).rows[0]?.id || 4;
 
     for (const sc of allScreens.rows) {
       const existingSeats = await client.query(`SELECT COUNT(*) as count FROM seats WHERE screen_id = $1`, [sc.id]);
       if (parseInt(existingSeats.rows[0].count, 10) < 100) {
-        // Fast bulk insert 100 seats in a single query!
+        // Fast bulk insert 100 seats across all 4 tiers
         await client.query(`
           INSERT INTO seats (screen_id, seat_type_id, row_label, seat_number)
           SELECT 
             $1,
-            CASE WHEN r IN ('A','B','C','D') THEN $2::INTEGER ELSE $3::INTEGER END,
+            CASE 
+              WHEN r IN ('A','B') THEN $2::INTEGER
+              WHEN r IN ('C','D','E','F') THEN $3::INTEGER
+              WHEN r IN ('G','H') THEN $4::INTEGER
+              WHEN r IN ('I','J') THEN $5::INTEGER
+              ELSE $2::INTEGER
+            END,
             r,
             n
           FROM unnest(ARRAY['A','B','C','D','E','F','G','H','I','J']) as r
           CROSS JOIN generate_series(1, 10) as n
-          ON CONFLICT (screen_id, row_label, seat_number) DO NOTHING
-        `, [sc.id, seatTypePremium, seatTypeRegular]);
+          ON CONFLICT (screen_id, row_label, seat_number) DO UPDATE SET
+            seat_type_id = EXCLUDED.seat_type_id
+        `, [sc.id, seatTypeRegular, seatTypePremium, seatTypeVip, seatTypeRecliner]);
       }
     }
     console.log('✅ Verified 100 seats per screen');

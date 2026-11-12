@@ -23,23 +23,23 @@ import {
   Film,
   AlertCircle
 } from 'lucide-react';
+import { useLocation } from '@/context/LocationContext';
 
 export default function MovieDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
   const { socket } = useNotifications();
+  const { selectedCity, setSelectedCity, cities } = useLocation();
 
   const [movie, setMovie] = useState<any>(null);
   const [theatres, setTheatres] = useState<any[]>([]);
-  const [selectedCity, setSelectedCity] = useState('Bengaluru');
   const [selectedDate, setSelectedDate] = useState('today');
   const [isLoading, setIsLoading] = useState(true);
   const [isShowsLoading, setIsShowsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const isComingSoon = movie?.status === 'COMING_SOON';
-  const cities = ['Bengaluru', 'Hyderabad', 'Chennai'];
   const dates = getBookingDates(isComingSoon);
 
   // Helper to extract YouTube embed URL

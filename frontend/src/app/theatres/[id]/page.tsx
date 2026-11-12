@@ -4,17 +4,19 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { theatreAPI } from '@/lib/api';
+import { useNotifications } from '@/context/NotificationContext';
 import { Building2, MapPin, ArrowLeft, Clock, Ticket, Film, Sparkles } from 'lucide-react';
 
 export default function TheatreDetailPage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const { socket } = useNotifications();
 
   const [theatre, setTheatre] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
+  const fetchTheatre = () => {
     if (!id) return;
     theatreAPI
       .getById(id)
@@ -23,7 +25,17 @@ export default function TheatreDetailPage() {
       })
       .catch((err) => console.error(err))
       .finally(() => setIsLoading(false));
-  }, [id]);
+  };
+
+  useEffect(() => {
+    fetchTheatre();
+    if (socket) {
+      socket.on('shows_updated', fetchTheatre);
+      return () => {
+        socket.off('shows_updated', fetchTheatre);
+      };
+    }
+  }, [id, socket]);
 
   if (isLoading) {
     return (

@@ -8,6 +8,7 @@ import { createNotification } from '../services/notificationService';
 import { getIO } from '../socket';
 import { generateQR } from '../utils/helpers';
 import { v4 as uuidv4 } from 'uuid';
+import { paymentOutcomes } from '../metrics';
 
 const router = Router();
 
@@ -71,6 +72,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       `, [bookingId]);
 
       await client.query('COMMIT');
+      paymentOutcomes.labels('success', method.toUpperCase(), process.env.ARCHITECTURE_LABEL || 'monolith').inc();
 
       // Get show details for notification
       const showInfo = await query(`
@@ -116,6 +118,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       `, [bookingId]);
 
       await client.query('COMMIT');
+      paymentOutcomes.labels(paymentStatus.toLowerCase(), method.toUpperCase(), process.env.ARCHITECTURE_LABEL || 'monolith').inc();
 
       await createNotification(userId, 'PAYMENT_FAILED', '❌ Payment Failed',
         `Your payment of ₹${booking.total_amount} for booking ${booking.booking_reference} failed. Please try again.`,

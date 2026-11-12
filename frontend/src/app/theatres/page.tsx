@@ -4,24 +4,33 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { theatreAPI } from '@/lib/api';
 import { Theatre } from '@/types';
-import { Building2, MapPin, Film, Sparkles, ArrowRight } from 'lucide-react';
+import { Building2, MapPin, Film, Sparkles, ArrowRight, Compass, Loader2 } from 'lucide-react';
+import { useLocation } from '@/context/LocationContext';
 
 export default function TheatresPage() {
   const [theatres, setTheatres] = useState<Theatre[]>([]);
-  const [selectedCity, setSelectedCity] = useState('');
-  const [cities, setCities] = useState<string[]>([]);
+  const { 
+    selectedCity, 
+    setSelectedCity, 
+    cities, 
+    isLocating, 
+    detectLocation, 
+    locationStatus 
+  } = useLocation();
+  const [filterCity, setFilterCity] = useState(selectedCity);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Sync with global location
+  useEffect(() => {
+    setFilterCity(selectedCity);
+  }, [selectedCity]);
 
   useEffect(() => {
     async function loadData() {
       try {
         setIsLoading(true);
-        const [tRes, cRes] = await Promise.all([
-          theatreAPI.getAll(selectedCity ? { city: selectedCity } : {}),
-          theatreAPI.getCities(),
-        ]);
+        const tRes = await theatreAPI.getAll(filterCity ? { city: filterCity } : {});
         if (tRes.success) setTheatres(tRes.data);
-        if (cRes.success) setCities(cRes.data);
       } catch (err) {
         console.error('Failed to load theatres:', err);
       } finally {
@@ -29,7 +38,21 @@ export default function TheatresPage() {
       }
     }
     loadData();
-  }, [selectedCity]);
+  }, [filterCity]);
+
+  const handleCityChange = (city: string) => {
+    setFilterCity(city);
+    if (city) {
+      setSelectedCity(city);
+    }
+  };
+
+  const handleGPSDetect = async () => {
+    const detected = await detectLocation();
+    if (detected) {
+      setFilterCity(detected);
+    }
+  };
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-8 py-8 pb-24 space-y-8">
@@ -41,31 +64,57 @@ export default function TheatresPage() {
             <span>Cinema Theatres &amp; Multiplexes</span>
           </h1>
           <p className="text-xs text-gray-400 mt-1">
-            Browse top multiplex chains with IMAX, 4DX, and Dolby Atmos audio
+            Browse top multiplex chains with IMAX, 4DX, and Dolby Atmos audio in <span className="text-rose-400 font-bold">{filterCity || 'All Cities'}</span>
           </p>
+          {locationStatus && (
+            <p className="text-[11px] text-amber-300 mt-1.5 flex items-center gap-1 font-medium">
+              <span>{locationStatus}</span>
+            </p>
+          )}
         </div>
 
-        {/* City Filter */}
-        <div className="flex items-center gap-2 bg-white/[0.04] p-1.5 rounded-2xl border border-white/[0.06] self-start">
+        {/* City Filter & GPS Button */}
+        <div className="flex flex-wrap items-center gap-2 self-start">
           <button
-            onClick={() => setSelectedCity('')}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-              selectedCity === '' ? 'bg-rose-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
-            }`}
+            onClick={handleGPSDetect}
+            disabled={isLocating}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-rose-600/20 hover:bg-rose-600/30 border border-rose-500/30 text-rose-300 hover:text-white flex items-center gap-1.5 transition-all disabled:opacity-50"
+            title="Use device GPS to locate nearest cinema city"
           >
-            All Cities
+            {isLocating ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-rose-400" />
+                <span>Locating...</span>
+              </>
+            ) : (
+              <>
+                <Compass className="w-3.5 h-3.5 text-rose-400" />
+                <span>Locate via GPS</span>
+              </>
+            )}
           </button>
-          {cities.map((city) => (
+
+          <div className="flex items-center gap-1.5 bg-white/[0.04] p-1.5 rounded-2xl border border-white/[0.06]">
             <button
-              key={city}
-              onClick={() => setSelectedCity(city)}
+              onClick={() => handleCityChange('')}
               className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
-                selectedCity === city ? 'bg-rose-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
+                filterCity === '' ? 'bg-rose-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
               }`}
             >
-              {city}
+              All Cities
             </button>
-          ))}
+            {cities.map((city) => (
+              <button
+                key={city}
+                onClick={() => handleCityChange(city)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-colors ${
+                  filterCity === city ? 'bg-rose-600 text-white shadow-md' : 'text-gray-400 hover:text-white'
+                }`}
+              >
+                {city}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 

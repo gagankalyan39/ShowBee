@@ -110,6 +110,15 @@ server.listen(Number(PORT), '0.0.0.0', () => {
   console.log(`📡 Real-Time Socket.IO connected`);
   console.log(`🔒 Pessimistic Seat Locking Engine ACTIVE`);
   console.log(`👥 4-Member Modular Architecture ONLINE: /api/system/team`);
+
+  // Auto-trigger Prometheus & Grafana monitoring containers if docker is available
+  import('child_process').then(({ exec }) => {
+    exec('docker compose up -d prometheus grafana', (err) => {
+      if (!err) {
+        console.log('📊 Grafana (port 3001) & Prometheus (port 9090) auto-started via Docker Compose');
+      }
+    });
+  }).catch(() => {});
 });
 
 export { app, server };

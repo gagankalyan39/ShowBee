@@ -16,9 +16,9 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../backend/.env') });
 process.env.ARCHITECTURE_LABEL = 'microservice';
 
-import { register, dbPoolActive, dbPoolWaiting } from './metrics';
+import { register } from './metrics';
 import { metricsMiddleware } from './middleware/metrics';
-import pool from './db';
+import pool, { updatePoolMetrics } from './db';
 import seatsRouter from './routes/seats';
 import bookingsRouter from './routes/bookings';
 import paymentsRouter from './routes/payments';
@@ -45,8 +45,7 @@ app.get('/health', (_req, res) => {
 // Prometheus metrics
 app.get('/metrics', async (_req: Request, res: Response) => {
   try {
-    dbPoolActive.labels('microservice').set((pool as any).totalCount || 0);
-    dbPoolWaiting.labels('microservice').set((pool as any).waitingCount || 0);
+    updatePoolMetrics();
     res.set('Content-Type', register.contentType);
     res.end(await register.metrics());
   } catch (err: any) {

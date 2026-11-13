@@ -1,0 +1,9 @@
+experimentId,name,architecture,lockMode,workload,throughputRps_mean,throughputRps_stdDev,p50LatencyMs_mean,p50LatencyMs_stdDev,p95LatencyMs_mean,p95LatencyMs_stdDev,p99LatencyMs_mean,p99LatencyMs_stdDev,conflictRatePct_mean,conflictRatePct_stdDev,doubleBookingsTotal
+exp1_mono_pess_hotspot,"Monolith + Pessimistic + Hotspot",monolith,PESSIMISTIC,hotspot,239.29,2.3,16.96,12.2,80.53,54.07,80.53,54.07,99.32,0,0
+exp2_mono_opt_hotspot,"Monolith + Optimistic + Hotspot",monolith,OPTIMISTIC,hotspot,231.44,22.49,22.85,16.7,79.64,50.48,79.64,50.48,99.32,0,0
+exp3_mono_pess_dist,"Monolith + Pessimistic + Distributed",monolith,PESSIMISTIC,distributed,320.42,93.69,46.89,27.81,71.42,29.2,71.42,29.2,95.01,1,0
+exp4_mono_opt_dist,"Monolith + Optimistic + Distributed",monolith,OPTIMISTIC,distributed,153.8,30.03,127.46,26.27,264.23,111.29,264.23,111.29,93.46,1.35,0
+exp5_micro_pess_hotspot,"Microservice + Pessimistic + Hotspot",microservice,PESSIMISTIC,hotspot,244.91,13.51,5.18,1.66,56.35,26.25,56.35,26.25,99.32,0,0
+exp6_micro_opt_hotspot,"Microservice + Optimistic + Hotspot",microservice,OPTIMISTIC,hotspot,250.41,2.4,6.47,1.66,40.59,4.04,40.59,4.04,99.32,0,0
+exp7_micro_pess_dist,"Microservice + Pessimistic + Distributed",microservice,PESSIMISTIC,distributed,342.64,102.84,39.48,27.25,64.94,28.14,64.94,28.14,95.26,1.06,0
+exp8_micro_opt_dist,"Microservice + Optimistic + Distributed",microservice,OPTIMISTIC,distributed,184.1,23.35,109.45,19.96,141.48,26.98,141.48,26.98,94.61,0.67,0

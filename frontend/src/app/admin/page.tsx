@@ -51,7 +51,6 @@ import {
   CheckSquare,
   Square,
 } from 'lucide-react';
-import AdminBenchmarkLab from '../../components/AdminBenchmarkLab';
 import GrafanaLiveDashboard from '../../components/GrafanaLiveDashboard';
 import ImageDropzone from '../../components/ImageDropzone';
 import GalleryDropzone from '../../components/GalleryDropzone';
@@ -77,10 +76,10 @@ export default function AdminDashboardPage() {
 
   const searchParams = useSearchParams();
   const initialTab = (searchParams?.get('tab') as any) || 'overview';
-  const validTabs = ['overview', 'analysis', 'movies', 'shows', 'users', 'benchmark', 'logs', 'grafana'];
+  const validTabs = ['overview', 'analysis', 'movies', 'shows', 'users', 'logs', 'grafana'];
 
-  // Tabs: overview, analysis, movies, shows, users, benchmark, logs, grafana
-  const [activeTab, setActiveTab] = useState<'overview' | 'analysis' | 'movies' | 'shows' | 'users' | 'benchmark' | 'logs' | 'grafana'>(
+  // Tabs: overview, analysis, movies, shows, users, logs, grafana
+  const [activeTab, setActiveTab] = useState<'overview' | 'analysis' | 'movies' | 'shows' | 'users' | 'logs' | 'grafana'>(
     validTabs.includes(initialTab) ? initialTab : 'overview'
   );
 
@@ -92,7 +91,7 @@ export default function AdminDashboardPage() {
     }
   }, [searchParams]);
 
-  const handleTabChange = (tab: 'overview' | 'analysis' | 'movies' | 'shows' | 'users' | 'benchmark' | 'logs' | 'grafana') => {
+  const handleTabChange = (tab: 'overview' | 'analysis' | 'movies' | 'shows' | 'users' | 'logs' | 'grafana') => {
     setActiveTab(tab);
     if (typeof window !== 'undefined') {
       const url = new URL(window.location.href);
@@ -522,7 +521,7 @@ export default function AdminDashboardPage() {
           <div className="space-y-2">
             <h1 className="text-2xl font-black text-white uppercase tracking-tight">Admin Console Access</h1>
             <p className="text-xs text-slate-300 leading-relaxed">
-              Authenticate as an Administrator to access real-time multiplex analytics, catalog management, media dropzone, and 10k concurrency labs.
+              Authenticate as an Administrator to access real-time multiplex analytics, catalog management, media dropzone, and system observability.
             </p>
             {user && !isAdmin && (
               <p className="text-[11px] text-amber-300 mt-2 p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30">
@@ -675,7 +674,6 @@ export default function AdminDashboardPage() {
               { id: 'movies', label: 'Movies & Media', icon: Film, count: moviesList.length },
               { id: 'shows', label: 'Shows Scheduling', icon: Calendar, count: showsList.length },
               { id: 'users', label: 'User Directory', icon: Users, count: usersList.length },
-              { id: 'benchmark', label: '10k Concurrency Lab', icon: Zap, highlight: true },
               { id: 'logs', label: 'Audit Trail', icon: FileText },
               { id: 'grafana', label: 'Grafana Observatory', icon: MonitorDot, badge: 'Live', highlight: true },
             ].map((tab) => {
@@ -2221,13 +2219,6 @@ export default function AdminDashboardPage() {
                 </table>
               </div>
             </div>
-          )}
-
-          {/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */}
-          {/* TAB 6: 10,000 USER CONCURRENCY LAB */}
-          {/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */}
-          {activeTab === 'benchmark' && (
-            <AdminBenchmarkLab />
           )}
 
           {/* ══════════════════════════════════════════════════════════════════════════════════════════════════════════════════════ */}

@@ -13,7 +13,7 @@ export function startSeatLockCleanupJob() {
       // Find seats that expired
       const expiredRes = await query(`
         UPDATE show_seats
-        SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL
+        SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL, version = version + 1, updated_at = NOW()
         WHERE status = 'HELD' AND lock_expires_at < NOW()
         RETURNING id, show_id, seat_id
       `);

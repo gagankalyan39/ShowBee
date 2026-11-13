@@ -1,0 +1,107 @@
+{
+  "title": "SHOWBEE — 3. Scalability & System Health Observatory",
+  "uid": "showbee-scalability-health",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "📈 Request Rate (RPS) vs 2xx Throughput",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_http_requests_total[1m]))",
+          "legendFormat": "Total Requests/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(showbee_http_requests_total{status_code=~\"2..\"}[1m]))",
+          "legendFormat": "Successful (2xx) Throughput/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 2,
+      "title": "⚠️ HTTP Error Rate (%)",
+      "type": "gauge",
+      "gridPos": { "x": 12, "y": 0, "w": 6, "h": 8 },
+      "targets": [
+        {
+          "expr": "clamp_max((sum(rate(showbee_http_errors_total[1m])) / (sum(rate(showbee_http_requests_total[1m])) + 0.0001)) * 100, 100)",
+          "legendFormat": "Error Rate %",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "min": 0, "max": 100, "unit": "percent" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 3,
+      "title": "🛡 Database Deadlocks (40P01 Counter)",
+      "type": "stat",
+      "gridPos": { "x": 18, "y": 0, "w": 6, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(increase(showbee_db_deadlocks_total[1h]))",
+          "legendFormat": "Deadlocks (Last 1h)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "color": { "mode": "thresholds" } } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 4,
+      "title": "⏱ End-to-End Latency Percentiles (p50 / p95 / p99)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(showbee_http_request_duration_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "p50 Latency",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "p95 Latency",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(showbee_http_request_duration_seconds_bucket[1m])) by (le)) * 1000",
+          "legendFormat": "p99 Latency",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 5,
+      "title": "🗄 DB Pool Saturation: Waiting Queue & Rollbacks",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(showbee_db_pool_waiting_count)",
+          "legendFormat": "Waiting Queries",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(showbee_db_transaction_rollbacks_total[1m]))",
+          "legendFormat": "Rollbacks / Sec",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    }
+  ]
+}
+

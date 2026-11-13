@@ -1,0 +1,25 @@
+experimentId,experimentName,architecture,lockMode,workload,repetition,totalRequests,throughputRps,avgLatencyMs,medLatencyMs,p90LatencyMs,p95LatencyMs,p99LatencyMs,maxLatencyMs,attempts,successes,conflicts,retries,conflictRatePct,errorRatePct,doubleBookings,timestamp
+exp1_mono_pess_hotspot,"Monolith + Pessimistic + Hotspot",monolith,PESSIMISTIC,hotspot,1,298,237.59,25.17,4.24,126.73,142.81,142.81,180.85,296,2,294,196,99.32,98.66,0,2026-11-13T02:50:05.305Z
+exp1_mono_pess_hotspot,"Monolith + Pessimistic + Hotspot",monolith,PESSIMISTIC,hotspot,2,298,238.38,23.55,28.57,44.27,45.55,45.55,67.73,296,2,294,196,99.32,98.66,0,2026-11-13T02:50:08.069Z
+exp1_mono_pess_hotspot,"Monolith + Pessimistic + Hotspot",monolith,PESSIMISTIC,hotspot,3,298,241.91,19.41,18.07,44.26,53.24,53.24,62.88,296,2,294,196,99.32,98.66,0,2026-11-13T02:50:10.832Z
+exp2_mono_opt_hotspot,"Monolith + Optimistic + Hotspot",monolith,OPTIMISTIC,hotspot,1,298,241.13,20.12,20.28,41.71,48.6,48.6,70.71,296,2,294,196,99.32,98.66,0,2026-11-13T02:50:14.620Z
+exp2_mono_opt_hotspot,"Monolith + Optimistic + Hotspot",monolith,OPTIMISTIC,hotspot,2,298,247.45,16.94,7.58,41.79,52.43,52.43,61.69,296,2,294,196,99.32,98.66,0,2026-11-13T02:50:17.307Z
+exp2_mono_opt_hotspot,"Monolith + Optimistic + Hotspot",monolith,OPTIMISTIC,hotspot,3,298,205.73,48.34,40.69,128.92,137.88,137.88,151.01,296,2,294,196,99.32,98.66,0,2026-11-13T02:50:21.392Z
+exp3_mono_pess_dist,"Monolith + Pessimistic + Distributed",monolith,PESSIMISTIC,distributed,1,4267,421.14,19.88,19.01,34.71,40.66,40.66,76.19,4265,200,4065,0,95.31,95.27,0,2026-11-13T02:50:33.109Z
+exp3_mono_pess_dist,"Monolith + Pessimistic + Distributed",monolith,PESSIMISTIC,distributed,2,3097,304.26,46.73,47.03,61.93,74.84,74.84,116.73,3095,189,2906,0,93.89,93.83,0,2026-11-13T02:50:46.987Z
+exp3_mono_pess_dist,"Monolith + Pessimistic + Distributed",monolith,PESSIMISTIC,distributed,3,2398,235.87,74.97,74.63,92.34,98.75,98.75,144.66,2396,100,2296,0,95.83,95.75,0,2026-11-13T02:50:58.614Z
+exp4_mono_opt_dist,"Monolith + Optimistic + Distributed",monolith,OPTIMISTIC,distributed,1,1849,181.62,112.57,100.17,166.63,205.74,205.74,323.05,1847,100,1747,0,94.59,94.48,0,2026-11-13T02:51:10.345Z
+exp4_mono_opt_dist,"Monolith + Optimistic + Distributed",monolith,OPTIMISTIC,distributed,2,1624,157.82,136.87,129.65,167.56,194.39,194.39,403.08,1622,100,1522,0,93.83,93.72,0,2026-11-13T02:51:22.139Z
+exp4_mono_opt_dist,"Monolith + Optimistic + Distributed",monolith,OPTIMISTIC,distributed,3,1247,121.96,191.79,152.57,319.91,392.57,392.57,614.69,1245,100,1145,0,91.97,91.82,0,2026-11-13T02:51:33.887Z
+exp5_micro_pess_hotspot,"Microservice + Pessimistic + Hotspot",microservice,PESSIMISTIC,hotspot,1,298,229.33,20.12,4.66,67.83,86.48,86.48,179.66,296,2,294,196,99.32,98.66,0,2026-11-13T02:51:36.676Z
+exp5_micro_pess_hotspot,"Microservice + Pessimistic + Hotspot",microservice,PESSIMISTIC,hotspot,2,298,253.43,12.13,3.85,35.44,38.45,38.45,67.6,296,2,294,196,99.32,98.66,0,2026-11-13T02:51:39.408Z
+exp5_micro_pess_hotspot,"Microservice + Pessimistic + Hotspot",microservice,PESSIMISTIC,hotspot,3,298,251.96,14.37,7.04,37.3,44.12,44.12,69.91,296,2,294,196,99.32,98.66,0,2026-11-13T02:51:42.084Z
+exp6_micro_opt_hotspot,"Microservice + Optimistic + Hotspot",microservice,OPTIMISTIC,hotspot,1,298,252.05,11.5,5.79,31.15,35.93,35.93,62.71,296,2,294,196,99.32,98.66,0,2026-11-13T02:51:44.833Z
+exp6_micro_opt_hotspot,"Microservice + Optimistic + Hotspot",microservice,OPTIMISTIC,hotspot,2,298,251.53,13.26,5.26,37.69,42.95,42.95,60.91,296,2,294,196,99.32,98.66,0,2026-11-13T02:51:47.603Z
+exp6_micro_opt_hotspot,"Microservice + Optimistic + Hotspot",microservice,OPTIMISTIC,hotspot,3,298,247.65,16.99,8.37,39.88,42.9,42.9,61.04,296,2,294,196,99.32,98.66,0,2026-11-13T02:51:50.295Z
+exp7_micro_pess_dist,"Microservice + Pessimistic + Distributed",microservice,PESSIMISTIC,distributed,1,4598,453.1,14.83,12.41,28.84,33.44,33.44,68.53,4596,200,4396,0,95.65,95.61,0,2026-11-13T02:52:02.037Z
+exp7_micro_pess_dist,"Microservice + Pessimistic + Distributed",microservice,PESSIMISTIC,distributed,2,3301,325.14,40.58,39.12,57.67,73.76,73.76,103.07,3299,196,3103,0,94.06,94,0,2026-11-13T02:52:13.709Z
+exp7_micro_pess_dist,"Microservice + Pessimistic + Distributed",microservice,PESSIMISTIC,distributed,3,2540,249.67,67.95,66.91,81.59,87.61,87.61,132.74,2538,100,2438,0,96.06,95.98,0,2026-11-13T02:52:26.719Z
+exp8_micro_opt_dist,"Microservice + Optimistic + Distributed",microservice,OPTIMISTIC,distributed,1,2119,208.24,91.41,89.75,106.5,115.15,115.15,167.9,2117,100,2017,0,95.28,95.19,0,2026-11-13T02:52:38.500Z
+exp8_micro_opt_dist,"Microservice + Optimistic + Distributed",microservice,OPTIMISTIC,distributed,2,1857,182.43,111.5,108.93,127.59,140.22,140.22,219.73,1855,100,1755,0,94.61,94.51,0,2026-11-13T02:52:50.649Z
+exp8_micro_opt_dist,"Microservice + Optimistic + Distributed",microservice,OPTIMISTIC,distributed,3,1654,161.62,132.22,129.66,158.5,169.06,169.06,242.61,1652,100,1552,0,93.95,93.83,0,2026-11-13T02:53:02.457Z

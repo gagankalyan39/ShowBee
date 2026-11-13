@@ -19,6 +19,12 @@ async function setup() {
       const migration2SQL = fs.readFileSync(migration2File, 'utf8');
       await client.query(migration2SQL);
     }
+
+    const migration3File = path.join(__dirname, '../../../database/migrations/003_concurrency_and_idempotency.sql');
+    if (fs.existsSync(migration3File)) {
+      const migration3SQL = fs.readFileSync(migration3File, 'utf8');
+      await client.query(migration3SQL);
+    }
     console.log('✅ Schema created successfully');
 
     console.log('🌱 Running seed data...');

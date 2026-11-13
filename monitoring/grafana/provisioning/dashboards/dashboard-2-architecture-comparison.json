@@ -1,0 +1,131 @@
+{
+  "title": "SHOWBEE — 2. Architecture Comparison (Monolith vs Microservice)",
+  "uid": "showbee-arch-comparison",
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "🏗 HTTP Requests per Second (RPS)",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_http_requests_total{architecture=\"monolith\"}[1m]))",
+          "legendFormat": "Monolith (port 5001)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(showbee_http_requests_total{architecture=\"microservice\"}[1m]))",
+          "legendFormat": "Microservice (port 5002)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 2,
+      "title": "🎟 Confirmed Bookings Processed / Sec",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_booking_creations_total{status=\"confirmed\",architecture=\"monolith\"}[1m]))",
+          "legendFormat": "Monolith Confirmed/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(showbee_booking_creations_total{status=\"confirmed\",architecture=\"microservice\"}[1m]))",
+          "legendFormat": "Microservice Confirmed/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 3,
+      "title": "⏱ HTTP Response Time: p95 & p99 Latency Comparison",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"monolith\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Monolith p95",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"monolith\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Monolith p99",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"microservice\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Microservice p95",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"microservice\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Microservice p99",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "ms" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 4,
+      "title": "🗄 DB Pool Active & Idle Connections Comparison",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "showbee_db_pool_active_connections{architecture=\"monolith\"}",
+          "legendFormat": "Monolith Active Connections",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "showbee_db_pool_active_connections{architecture=\"microservice\"}",
+          "legendFormat": "Microservice Active Connections",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "showbee_db_pool_idle_connections{architecture=\"monolith\"}",
+          "legendFormat": "Monolith Idle Connections",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "showbee_db_pool_idle_connections{architecture=\"microservice\"}",
+          "legendFormat": "Microservice Idle Connections",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 5,
+      "title": "💻 Process Memory Utilization (MB)",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "showbee_runtime_process_resident_memory_bytes{job=\"showbee-monolith\"} / 1024 / 1024",
+          "legendFormat": "Monolith RSS (MB)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "showbee_runtime_process_resident_memory_bytes{job=\"showbee-booking-microservice\"} / 1024 / 1024",
+          "legendFormat": "Microservice RSS (MB)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "mbytes" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    }
+  ]
+}
+

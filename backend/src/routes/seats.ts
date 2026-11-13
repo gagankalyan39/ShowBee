@@ -60,11 +60,17 @@ router.get('/:id/seats', async (req: Request, res: Response) => {
 // POST /api/shows/:id/seats/hold — PESSIMISTIC LOCKING (Critical)
 router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Response) => {
   const { id: showId } = req.params;
-  const { seatIds } = req.body; // array of show_seat_ids
+  const rawSeatIds = req.body.seatIds; // array of show_seat_ids
   const userId = req.user!.id;
 
-  if (!seatIds || !Array.isArray(seatIds) || seatIds.length === 0) {
+  if (!rawSeatIds || !Array.isArray(rawSeatIds) || rawSeatIds.length === 0) {
     return res.status(400).json({ success: false, message: 'No seats selected' });
+  }
+
+  // Deduplicate and deterministically sort seat IDs to eliminate deadlocks (40P01)
+  const seatIds: string[] = Array.from(new Set(rawSeatIds.filter((s: any) => typeof s === 'string'))).sort();
+  if (seatIds.length === 0) {
+    return res.status(400).json({ success: false, message: 'Invalid seat IDs provided' });
   }
 
   const client = await getClient();
@@ -97,7 +103,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
     if (lockMode === 'OPTIMISTIC') {
       // ────────────────────────────────────────────────────
       // OPTIMISTIC LOCKING ENGINE (Version-based CAS)
-      // Read without row locks, then atomic Compare-And-Set
+      // Read without row locks in deterministic order, then atomic CAS
       // ────────────────────────────────────────────────────
       const readResult = await client.query(`
         SELECT ss.id, ss.status, ss.locked_by, ss.lock_expires_at, ss.version,
@@ -105,7 +111,18 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
         FROM show_seats ss
         JOIN seats se ON ss.seat_id = se.id
         WHERE ss.id = ANY($1::uuid[]) AND ss.show_id = $2
+        ORDER BY ss.id ASC
       `, [seatIds, showId]);
+
+      if (readResult.rows.length !== seatIds.length) {
+        await client.query('ROLLBACK');
+        seatLockConflicts.labels(lockModeLabel, ARCH).inc(); lockTimer();
+        return res.status(404).json({
+          success: false,
+          lockMode: 'OPTIMISTIC',
+          message: 'One or more requested seats do not exist for this show',
+        });
+      }
 
       const unavailable: string[] = [];
       const validSeats: any[] = [];
@@ -131,6 +148,9 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
         });
       }
 
+      // Sort valid seats deterministically by ID before CAS execution
+      validSeats.sort((a, b) => a.id.localeCompare(b.id));
+
       // Atomic Compare-And-Set (CAS) Update
       let conflictOccurred = false;
       const toHold: string[] = [];
@@ -145,7 +165,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
               updated_at = NOW()
           WHERE id = $2 
             AND version = $3 
-            AND (status = 'AVAILABLE' OR (status = 'HELD' AND lock_expires_at <= NOW()) OR locked_by = $1)
+            AND (status = 'AVAILABLE' OR (status = 'HELD' AND lock_expires_at <= NOW()) OR (status = 'HELD' AND locked_by = $1))
           RETURNING id, version
         `, [userId, seat.id, seat.version]);
 
@@ -197,7 +217,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
 
     // ────────────────────────────────────────────────────
     // PESSIMISTIC LOCKING ENGINE (SELECT ... FOR UPDATE)
-    // Exclusive row lock prevents race conditions
+    // Deterministic ORDER BY ss.id ASC prevents deadlocks
     // ────────────────────────────────────────────────────
     const lockResult = await client.query(`
       SELECT ss.id, ss.status, ss.locked_by, ss.lock_expires_at, ss.version,
@@ -205,8 +225,19 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
       FROM show_seats ss
       JOIN seats se ON ss.seat_id = se.id
       WHERE ss.id = ANY($1::uuid[]) AND ss.show_id = $2
+      ORDER BY ss.id ASC
       FOR UPDATE
     `, [seatIds, showId]);
+
+    if (lockResult.rows.length !== seatIds.length) {
+      await client.query('ROLLBACK');
+      seatLockConflicts.labels(lockModeLabel, ARCH).inc(); lockTimer();
+      return res.status(404).json({
+        success: false,
+        lockMode: 'PESSIMISTIC',
+        message: 'One or more requested seats do not exist for this show',
+      });
+    }
 
     // Check all requested seats
     const unavailable: string[] = [];
@@ -226,7 +257,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
       }
     }
 
-    if (unavailable.length > 0) {
+    if (unavailable.length > 0 || toHold.length !== seatIds.length) {
       await client.query('ROLLBACK');
       seatLockConflicts.labels(lockModeLabel, ARCH).inc(); lockTimer();
       return res.status(409).json({
@@ -291,13 +322,29 @@ router.post('/:id/seats/release', authenticate, async (req: AuthRequest, res: Re
     const { seatIds } = req.body;
     const userId = req.user!.id;
 
-    await query(`
+    if (!seatIds || !Array.isArray(seatIds) || seatIds.length === 0) {
+      return res.status(400).json({ success: false, message: 'No seats provided' });
+    }
+
+    const released = await query(`
       UPDATE show_seats
-      SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL, updated_at = NOW()
+      SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL, version = version + 1, updated_at = NOW()
       WHERE id = ANY($1::uuid[]) AND show_id = $2 AND locked_by = $3 AND status = 'HELD'
+      RETURNING id, seat_id
     `, [seatIds, showId, userId]);
 
-    res.json({ success: true, message: 'Seats released' });
+    try {
+      const io = getIO();
+      if (io && released.rows.length > 0) {
+        io.to(`show_${showId}`).emit('seats_released', {
+          showId,
+          seatIds: released.rows.map((r: any) => r.seat_id),
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch {}
+
+    res.json({ success: true, message: 'Seats released', count: released.rowCount });
   } catch (err: any) {
     res.status(500).json({ success: false, message: err.message });
   }

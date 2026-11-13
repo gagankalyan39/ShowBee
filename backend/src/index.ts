@@ -18,8 +18,8 @@ process.env.ARCHITECTURE_LABEL = process.env.ARCHITECTURE_LABEL || 'monolith';
 // Middlewares
 import { errorHandler } from './middleware/errorHandler';
 import { metricsMiddleware } from './middleware/metrics';
-import { register, dbPoolActive, dbPoolWaiting } from './metrics';
-import pool from './db';
+import { register } from './metrics';
+import pool, { updatePoolMetrics } from './db';
 
 // Socket.IO
 import { initSocket } from './socket';
@@ -28,6 +28,7 @@ import { initSocket } from './socket';
 import { startSeatLockCleanupJob } from './services/seatLockService';
 import { startShowLifecycleService } from './services/showLifecycleService';
 import { syncSeatHierarchy } from './services/seatHierarchySyncService';
+import { ensureDatabaseSchema } from './services/schemaMigrationService';
 
 // Routes
 import authRoutes from './routes/auth';
@@ -48,6 +49,7 @@ const server = http.createServer(app);
 initSocket(server);
 
 // Start background cron jobs & sync seat hierarchy
+ensureDatabaseSchema().catch(console.error);
 startSeatLockCleanupJob();
 startShowLifecycleService();
 syncSeatHierarchy();
@@ -77,9 +79,7 @@ app.get('/health', (_req, res) => {
 // Prometheus metrics endpoint
 app.get('/metrics', async (_req: Request, res: Response) => {
   try {
-    const ARCHITECTURE = process.env.ARCHITECTURE_LABEL || 'monolith';
-    dbPoolActive.labels(ARCHITECTURE).set((pool as any).totalCount || 0);
-    dbPoolWaiting.labels(ARCHITECTURE).set((pool as any).waitingCount || 0);
+    updatePoolMetrics();
     res.set('Content-Type', register.contentType);
     res.end(await register.metrics());
   } catch (err: any) {

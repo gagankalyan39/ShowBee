@@ -37,11 +37,11 @@ export async function syncSeatHierarchy(): Promise<void> {
     await query(`
       UPDATE seats
       SET seat_type_id = CASE
-        WHEN UPPER(row_label) IN ('A', 'B') THEN $1
-        WHEN UPPER(row_label) IN ('C', 'D', 'E', 'F') THEN $2
-        WHEN UPPER(row_label) IN ('G', 'H') THEN $3
-        WHEN UPPER(row_label) IN ('I', 'J') THEN $4
-        ELSE $1
+        WHEN UPPER(row_label) IN ('A', 'B') THEN $1::integer
+        WHEN UPPER(row_label) IN ('C', 'D', 'E', 'F') THEN $2::integer
+        WHEN UPPER(row_label) IN ('G', 'H') THEN $3::integer
+        WHEN UPPER(row_label) IN ('I', 'J') THEN $4::integer
+        ELSE $1::integer
       END
       WHERE is_active = true;
     `, [regId, premId, vipId, reclId]);

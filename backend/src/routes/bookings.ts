@@ -14,14 +14,51 @@ const router = Router();
 
 // POST /api/bookings — create booking
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+  const userId = req.user!.id;
+  const { showId, offerCode } = req.body;
+  const rawSeatIds = req.body.seatIds;
+  const idempotencyKey = (req.headers['idempotency-key'] || req.body.idempotencyKey || req.body.idempotency_key) as string | undefined;
+
+  // 1. Idempotency Check: if request with this key already succeeded, return saved booking
+  if (idempotencyKey) {
+    try {
+      const existing = await query(`
+        SELECT b.*,
+               COALESCE(json_agg(DISTINCT jsonb_build_object('row', se.row_label, 'num', se.seat_number, 'type', st.name, 'price', bs.price)) FILTER (WHERE se.id IS NOT NULL), '[]') AS seats
+        FROM bookings b
+        LEFT JOIN booking_seats bs ON bs.booking_id = b.id
+        LEFT JOIN seats se ON bs.seat_id = se.id
+        LEFT JOIN seat_types st ON se.seat_type_id = st.id
+        WHERE b.user_id = $1 AND b.idempotency_key = $2
+        GROUP BY b.id
+      `, [userId, idempotencyKey]);
+
+      if (existing.rows[0]) {
+        return res.status(200).json({
+          success: true,
+          idempotent: true,
+          message: 'Booking retrieved from idempotent cache',
+          data: existing.rows[0],
+        });
+      }
+    } catch {}
+  }
+
+  if (!rawSeatIds || !Array.isArray(rawSeatIds) || rawSeatIds.length === 0) {
+    return res.status(400).json({ success: false, message: 'No seats selected' });
+  }
+
+  // Deduplicate and deterministically sort seat IDs to eliminate deadlocks
+  const seatIds: string[] = Array.from(new Set(rawSeatIds.filter((s: any) => typeof s === 'string'))).sort();
+  if (seatIds.length === 0) {
+    return res.status(400).json({ success: false, message: 'Invalid seat IDs provided' });
+  }
+
   const client = await getClient();
   try {
-    const { showId, seatIds, offerCode } = req.body;
-    const userId = req.user!.id;
-
     await client.query('BEGIN');
 
-    // Re-verify seats are still HELD by this user with pessimistic lock
+    // Re-verify seats are still HELD by this user with deterministic pessimistic row lock
     const seatsResult = await client.query(`
       SELECT ss.id AS show_seat_id, ss.status, ss.locked_by, ss.lock_expires_at, ss.price,
              se.id AS seat_id, se.row_label, se.seat_number, st.name AS seat_type
@@ -29,18 +66,34 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       JOIN seats se ON ss.seat_id = se.id
       JOIN seat_types st ON se.seat_type_id = st.id
       WHERE ss.id = ANY($1::uuid[]) AND ss.show_id = $2
+      ORDER BY ss.id ASC
       FOR UPDATE
     `, [seatIds, showId]);
 
-    // Validate all seats are held by this user and not expired
+    // All-or-nothing: ensure every requested seat was found
+    if (seatsResult.rows.length !== seatIds.length) {
+      await client.query('ROLLBACK');
+      return res.status(409).json({
+        success: false,
+        message: 'One or more selected seats could not be found for this show.',
+      });
+    }
+
+    // Validate all seats are actively held by this user and not expired
     for (const seat of seatsResult.rows) {
       if (seat.status !== 'HELD' || seat.locked_by !== userId) {
         await client.query('ROLLBACK');
-        return res.status(409).json({ success: false, message: `Seat ${seat.row_label}${seat.seat_number} is no longer available. Please re-select your seats.` });
+        return res.status(409).json({
+          success: false,
+          message: `Seat ${seat.row_label}${seat.seat_number} is no longer held by you. Please re-select your seats.`,
+        });
       }
-      if (new Date(seat.lock_expires_at) < new Date()) {
+      if (new Date(seat.lock_expires_at) <= new Date()) {
         await client.query('ROLLBACK');
-        return res.status(409).json({ success: false, message: 'Your seat hold has expired. Please select seats again.' });
+        return res.status(409).json({
+          success: false,
+          message: 'Your seat hold has expired. Please select seats again.',
+        });
       }
     }
 
@@ -56,6 +109,7 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
         SELECT * FROM offers WHERE code = $1 AND is_active = TRUE
         AND (expiry_date IS NULL OR expiry_date >= CURRENT_DATE)
         AND (usage_limit IS NULL OR used_count < usage_limit)
+        FOR UPDATE
       `, [offerCode.toUpperCase()]);
 
       if (offer.rows[0]) {
@@ -67,7 +121,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
           } else {
             discount = parseFloat(o.discount_value);
           }
-          await client.query('UPDATE offers SET used_count = used_count + 1 WHERE code = $1', [offerCode.toUpperCase()]);
+          await client.query(
+            'UPDATE offers SET used_count = used_count + 1 WHERE code = $1 AND (usage_limit IS NULL OR used_count < usage_limit)',
+            [offerCode.toUpperCase()]
+          );
         }
       }
     }
@@ -75,12 +132,12 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     const totalAmount = subtotal + convenienceFee + taxes - discount;
     const bookingRef = generateBookingRef();
 
-    // Create booking record (PENDING status)
+    // Create booking record (PENDING status) with optional idempotency key
     const bookingResult = await client.query(`
-      INSERT INTO bookings (user_id, show_id, booking_reference, subtotal, convenience_fee, taxes, discount, total_amount, status, offer_code)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'PENDING',$9)
+      INSERT INTO bookings (user_id, show_id, booking_reference, subtotal, convenience_fee, taxes, discount, total_amount, status, offer_code, idempotency_key)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'PENDING',$9,$10)
       RETURNING *
-    `, [userId, showId, bookingRef, subtotal, convenienceFee, taxes, discount, totalAmount, offerCode || null]);
+    `, [userId, showId, bookingRef, subtotal, convenienceFee, taxes, discount, totalAmount, offerCode || null, idempotencyKey || null]);
 
     const booking = bookingResult.rows[0];
 
@@ -234,13 +291,27 @@ router.post('/:id/cancel', authenticate, async (req: AuthRequest, res: Response)
       return res.status(400).json({ success: false, message: 'Booking already cancelled' });
     }
 
-    // Release seats
-    await client.query(`
+    // Release seats with version increment
+    const releasedSeats = await client.query(`
       UPDATE show_seats ss
-      SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL
+      SET status = 'AVAILABLE', locked_by = NULL, lock_expires_at = NULL, version = version + 1, updated_at = NOW()
       FROM booking_seats bs
       WHERE bs.booking_id = $1 AND bs.show_seat_id = ss.id
+      RETURNING ss.id, ss.show_id, ss.seat_id
     `, [id]);
+
+    // Broadcast seats released via Socket.IO
+    try {
+      const io = getIO();
+      if (io && releasedSeats.rows.length > 0) {
+        const showId = releasedSeats.rows[0].show_id;
+        io.to(`show_${showId}`).emit('seats_released', {
+          showId,
+          seatIds: releasedSeats.rows.map((r: any) => r.seat_id),
+          timestamp: new Date().toISOString()
+        });
+      }
+    } catch {}
 
     // Cancel booking
     await client.query(

@@ -1,0 +1,242 @@
+[
+  {
+    "experimentId": "exp1_mono_pess_hotspot",
+    "name": "Monolith + Pessimistic + Hotspot",
+    "architecture": "monolith",
+    "lockMode": "PESSIMISTIC",
+    "workload": "hotspot",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 239.29,
+      "stdDev": 2.3
+    },
+    "p50LatencyMs": {
+      "mean": 16.96,
+      "stdDev": 12.2
+    },
+    "p95LatencyMs": {
+      "mean": 80.53,
+      "stdDev": 54.07
+    },
+    "p99LatencyMs": {
+      "mean": 80.53,
+      "stdDev": 54.07
+    },
+    "conflictRatePct": {
+      "mean": 99.32,
+      "stdDev": 0
+    },
+    "errorRatePct": 98.66,
+    "doubleBookingsTotal": 0
+  },
+  {
+    "experimentId": "exp2_mono_opt_hotspot",
+    "name": "Monolith + Optimistic + Hotspot",
+    "architecture": "monolith",
+    "lockMode": "OPTIMISTIC",
+    "workload": "hotspot",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 231.44,
+      "stdDev": 22.49
+    },
+    "p50LatencyMs": {
+      "mean": 22.85,
+      "stdDev": 16.7
+    },
+    "p95LatencyMs": {
+      "mean": 79.64,
+      "stdDev": 50.48
+    },
+    "p99LatencyMs": {
+      "mean": 79.64,
+      "stdDev": 50.48
+    },
+    "conflictRatePct": {
+      "mean": 99.32,
+      "stdDev": 0
+    },
+    "errorRatePct": 98.66,
+    "doubleBookingsTotal": 0
+  },
+  {
+    "experimentId": "exp3_mono_pess_dist",
+    "name": "Monolith + Pessimistic + Distributed",
+    "architecture": "monolith",
+    "lockMode": "PESSIMISTIC",
+    "workload": "distributed",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 320.42,
+      "stdDev": 93.69
+    },
+    "p50LatencyMs": {
+      "mean": 46.89,
+      "stdDev": 27.81
+    },
+    "p95LatencyMs": {
+      "mean": 71.42,
+      "stdDev": 29.2
+    },
+    "p99LatencyMs": {
+      "mean": 71.42,
+      "stdDev": 29.2
+    },
+    "conflictRatePct": {
+      "mean": 95.01,
+      "stdDev": 1
+    },
+    "errorRatePct": 94.95,
+    "doubleBookingsTotal": 0
+  },
+  {
+    "experimentId": "exp4_mono_opt_dist",
+    "name": "Monolith + Optimistic + Distributed",
+    "architecture": "monolith",
+    "lockMode": "OPTIMISTIC",
+    "workload": "distributed",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 153.8,
+      "stdDev": 30.03
+    },
+    "p50LatencyMs": {
+      "mean": 127.46,
+      "stdDev": 26.27
+    },
+    "p95LatencyMs": {
+      "mean": 264.23,
+      "stdDev": 111.29
+    },
+    "p99LatencyMs": {
+      "mean": 264.23,
+      "stdDev": 111.29
+    },
+    "conflictRatePct": {
+      "mean": 93.46,
+      "stdDev": 1.35
+    },
+    "errorRatePct": 93.34,
+    "doubleBookingsTotal": 0
+  },
+  {
+    "experimentId": "exp5_micro_pess_hotspot",
+    "name": "Microservice + Pessimistic + Hotspot",
+    "architecture": "microservice",
+    "lockMode": "PESSIMISTIC",
+    "workload": "hotspot",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 244.91,
+      "stdDev": 13.51
+    },
+    "p50LatencyMs": {
+      "mean": 5.18,
+      "stdDev": 1.66
+    },
+    "p95LatencyMs": {
+      "mean": 56.35,
+      "stdDev": 26.25
+    },
+    "p99LatencyMs": {
+      "mean": 56.35,
+      "stdDev": 26.25
+    },
+    "conflictRatePct": {
+      "mean": 99.32,
+      "stdDev": 0
+    },
+    "errorRatePct": 98.66,
+    "doubleBookingsTotal": 0
+  },
+  {
+    "experimentId": "exp6_micro_opt_hotspot",
+    "name": "Microservice + Optimistic + Hotspot",
+    "architecture": "microservice",
+    "lockMode": "OPTIMISTIC",
+    "workload": "hotspot",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 250.41,
+      "stdDev": 2.4
+    },
+    "p50LatencyMs": {
+      "mean": 6.47,
+      "stdDev": 1.66
+    },
+    "p95LatencyMs": {
+      "mean": 40.59,
+      "stdDev": 4.04
+    },
+    "p99LatencyMs": {
+      "mean": 40.59,
+      "stdDev": 4.04
+    },
+    "conflictRatePct": {
+      "mean": 99.32,
+      "stdDev": 0
+    },
+    "errorRatePct": 98.66,
+    "doubleBookingsTotal": 0
+  },
+  {
+    "experimentId": "exp7_micro_pess_dist",
+    "name": "Microservice + Pessimistic + Distributed",
+    "architecture": "microservice",
+    "lockMode": "PESSIMISTIC",
+    "workload": "distributed",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 342.64,
+      "stdDev": 102.84
+    },
+    "p50LatencyMs": {
+      "mean": 39.48,
+      "stdDev": 27.25
+    },
+    "p95LatencyMs": {
+      "mean": 64.94,
+      "stdDev": 28.14
+    },
+    "p99LatencyMs": {
+      "mean": 64.94,
+      "stdDev": 28.14
+    },
+    "conflictRatePct": {
+      "mean": 95.26,
+      "stdDev": 1.06
+    },
+    "errorRatePct": 95.2,
+    "doubleBookingsTotal": 0
+  },
+  {
+    "experimentId": "exp8_micro_opt_dist",
+    "name": "Microservice + Optimistic + Distributed",
+    "architecture": "microservice",
+    "lockMode": "OPTIMISTIC",
+    "workload": "distributed",
+    "repetitions": 3,
+    "throughputRps": {
+      "mean": 184.1,
+      "stdDev": 23.35
+    },
+    "p50LatencyMs": {
+      "mean": 109.45,
+      "stdDev": 19.96
+    },
+    "p95LatencyMs": {
+      "mean": 141.48,
+      "stdDev": 26.98
+    },
+    "p99LatencyMs": {
+      "mean": 141.48,
+      "stdDev": 26.98
+    },
+    "conflictRatePct": {
+      "mean": 94.61,
+      "stdDev": 0.67
+    },
+    "errorRatePct": 94.51,
+    "doubleBookingsTotal": 0
+  }
+]

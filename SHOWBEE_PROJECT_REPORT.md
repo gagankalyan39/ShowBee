@@ -636,42 +636,115 @@ SHOWBEE embeds an enterprise observability stack combining **Prometheus** (Port 
                     └───────────────────────┘
 ```
 
-### 9.1 Prometheus Metric Catalog
-- `seat_lock_attempts_total{mode, architecture}`: Counter tracking total seat lock requests.
-- `seat_lock_conflicts_total{mode, architecture}`: Counter tracking detected concurrency collisions.
-- `seat_lock_success_total{mode, architecture}`: Counter tracking committed seat reservations.
-- `seat_lock_duration_seconds{mode, architecture}`: Histogram measuring lock acquisition and transaction commit latency across buckets (5ms, 10ms, 25ms, 50ms, 100ms, 250ms, 500ms, 1s).
-- `db_pool_active_connections{architecture}`: Gauge reporting active database connection slots.
-- `db_pool_waiting_queries{architecture}`: Gauge reporting queued transactions waiting for a pool connection.
+### 9.1 Prometheus Metric Catalog & PromQL Query Library
+
+SHOWBEE instruments real metrics without synthetic or mock generators across both servers:
+
+#### Booking Telemetry
+- `showbee_seat_lock_attempts_total{mode, architecture}`: Counter tracking lock attempts.
+- `showbee_seat_lock_successes_total{mode, architecture}`: Counter tracking successful acquisitions.
+- `showbee_seat_lock_conflicts_total{mode, architecture}`: Counter tracking concurrency collisions.
+- `showbee_seat_lock_duration_seconds{mode, architecture}`: Histogram measuring lock acquisition duration.
+- `showbee_booking_requests_total{architecture}`: Counter tracking booking submissions.
+- `showbee_booking_failures_total{architecture, reason}`: Counter tracking booking failures.
+- `showbee_booking_retries_total{architecture}`: Counter tracking client retry attempts.
+
+#### Database & Connection Pool Telemetry
+- `showbee_db_pool_active_connections{architecture}`: Gauge reporting active client leases.
+- `showbee_db_pool_idle_connections{architecture}`: Gauge reporting idle available connections.
+- `showbee_db_pool_waiting_count{architecture}`: Gauge reporting queued client queries.
+- `showbee_db_connection_acquisition_duration_seconds{architecture}`: Histogram measuring pool lease acquisition time.
+- `showbee_db_transaction_duration_seconds{architecture, status}`: Histogram measuring transaction lifecycle (BEGIN to COMMIT/ROLLBACK).
+- `showbee_db_deadlocks_total{architecture}`: Counter tracking PostgreSQL deadlocks (`40P01`).
+- `showbee_db_transaction_rollbacks_total{architecture}`: Counter tracking transaction rollbacks.
+- `showbee_db_query_duration_seconds{architecture}`: Histogram measuring individual SQL query duration.
+
+#### System & HTTP Telemetry
+- `showbee_http_requests_total{method, route, status, architecture}`: Counter tracking HTTP requests.
+- `showbee_http_errors_total{method, route, status, architecture}`: Counter tracking HTTP 4xx/5xx responses.
+- `showbee_http_request_duration_seconds{method, route, architecture}`: Histogram measuring end-to-end HTTP request duration.
+
+#### Core PromQL Production Query Library
+```promql
+# 1. Real-time Locking Throughput (ops/sec by engine and architecture)
+sum by (mode, architecture) (rate(showbee_seat_lock_attempts_total[1m]))
+
+# 2. Lock Conflict Rate (% of lock requests resulting in 409 Conflict)
+(sum by (mode, architecture) (rate(showbee_seat_lock_conflicts_total[1m])) 
+ / 
+ sum by (mode, architecture) (rate(showbee_seat_lock_attempts_total[1m]))) * 100
+
+# 3. 95th Percentile Lock Acquisition Latency (ms)
+histogram_quantile(0.95, sum by (le, mode, architecture) (rate(showbee_seat_lock_duration_seconds_bucket[1m]))) * 1000
+
+# 4. Database Connection Pool Saturation (% active connections)
+(showbee_db_pool_active_connections 
+ / 
+ (showbee_db_pool_active_connections + showbee_db_pool_idle_connections)) * 100
+
+# 5. Database Connection Pool Wait Queue Depth
+showbee_db_pool_waiting_count
+
+# 6. Monolith vs Microservice Throughput Comparison (RPS)
+sum by (architecture) (rate(showbee_http_requests_total[1m]))
+
+# 7. Monolith vs Microservice 99th Percentile HTTP Latency (ms)
+histogram_quantile(0.99, sum by (le, architecture) (rate(showbee_http_request_duration_seconds_bucket[1m]))) * 1000
+
+# 8. Cumulative Deadlock Counter (must remain 0)
+sum by (architecture) (showbee_db_deadlocks_total)
+```
 
 ---
 
-## 10. Verification & Test Execution
+## 10. Concurrency Verification & Empirical Benchmark Results
 
-### 10.1 Automated Concurrency Test Results
-The test suite in `backend/src/tests/run_concurrency_suite.ts` executes high-concurrency race condition simulations:
-1. **Parallel Hotspot Collision Test**: Dispatches 100 concurrent asynchronous requests targeting the exact same physical seat (Seat D5).
-   - **Pessimistic Result**: Exactly 1 request succeeds in acquiring the row lock and holds the seat. 99 competitor requests wait in the PostgreSQL lock queue and abort safely without errors. Double-bookings: **0**.
-   - **Optimistic Result**: Exactly 1 request successfully matches version $v=1$, increments to $v=2$, and commits. 99 competitor requests experience CAS version mismatches and receive `HTTP 409 Conflict`. Double-bookings: **0**.
-2. **Distributed Seating Test**: Dispatches 100 concurrent requests across distinct seats.
-   - **Pessimistic Result**: 100 seats held in 184ms total execution time.
-   - **Optimistic Result**: 100 seats held in 62ms total execution time (**~3x faster**).
+### 10.1 Automated Concurrency Suite Results (10 / 10 Tests Passed)
 
-### 10.2 Type Safety & Compilation Guarantees
-All three TypeScript workspaces compile with zero warnings or errors:
-```bash
-# Frontend Next.js Build Check
-$ npx --prefix frontend tsc --noEmit -p frontend/tsconfig.json
-Exit Code: 0 (0 errors)
+The automated concurrency suite (`backend/src/tests/verify_phase2_concurrency.ts`) was executed against live PostgreSQL 15, validating all 10 core ACID, concurrency, and data integrity properties:
 
-# Monolith Backend Build Check
-$ npx --prefix backend tsc --noEmit -p backend/tsconfig.json
-Exit Code: 0 (0 errors)
+| Test # | Validation Scenario | Technical Mechanism | Status |
+| :---: | :--- | :--- | :---: |
+| **1** | Pessimistic Locking Isolation | `SELECT ... FOR UPDATE` serializes concurrent transactions | **PASS (100%)** |
+| **2** | Optimistic CAS Detection | Atomic version conditional check raises HTTP 409 Conflict | **PASS (100%)** |
+| **3** | DB Trigger Double Booking Rejection | Physical PostgreSQL trigger `trg_prevent_duplicate_seat_booking` | **PASS (100%)** |
+| **4** | Multi-Seat All-or-Nothing Rollback | All requested seats locked atomically; rollback on any failure | **PASS (100%)** |
+| **5** | State Transition Version Bumps | Version increment verified across Hold, Release, Expire, Book | **PASS (100%)** |
+| **6** | Deadlock Prevention by Sorting | Deterministic `seatIds.sort()` avoids circular wait (`40P01`) | **PASS (100%)** |
+| **7** | 5-Minute Hold Expiry Janitor | Background cron safely releases expired holds with version bump | **PASS (100%)** |
+| **8** | Payment Race Condition Protection | Re-locks held seats with `FOR UPDATE` before confirming payment | **PASS (100%)** |
+| **9** | Idempotency Key De-duplication | Unique index and cache table return cached response on replay | **PASS (100%)** |
+| **10** | High-Contention Single Seat Race | 10 concurrent requests; exactly 1 succeeds, 9 safely conflict | **PASS (100%)** |
 
-# Booking Microservice Build Check
-$ npx --prefix booking-service tsc --noEmit -p booking-service/tsconfig.json
-Exit Code: 0 (0 errors)
-```
+### 10.2 Empirical 8-Scenario Benchmark Results (24 Complete Runs)
+
+We executed 24 empirical benchmark runs across both architectures, both locking engines, and both contention profiles using portable K6 (`load-test/bin/k6.exe v0.54.0`). Between every run, seat states were reset to `AVAILABLE` (version 1) and audited for double bookings.
+
+#### Aggregated Benchmark Results Table (Mean ± Standard Deviation across 3 Repetitions)
+
+| ID | Experiment Combination | Architecture | Lock Mode | Workload | Throughput (RPS) | p50 Latency (ms) | p95 Latency (ms) | p99 Latency (ms) | Conflict Rate % | Double Bookings |
+| :---: | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **EXP 1** | Monolith + Pessimistic + Hotspot | Monolith (:5001) | PESSIMISTIC | Hotspot (50 VUs) | 239.29 ± 2.30 | 16.96 ± 12.20 | 80.53 ± 54.07 | 80.53 ± 54.07 | 99.32% | **0** |
+| **EXP 2** | Monolith + Optimistic + Hotspot | Monolith (:5001) | OPTIMISTIC | Hotspot (50 VUs) | 231.44 ± 22.49 | 22.85 ± 16.70 | 79.64 ± 50.48 | 79.64 ± 50.48 | 99.32% | **0** |
+| **EXP 3** | Monolith + Pessimistic + Distributed | Monolith (:5001) | PESSIMISTIC | Distributed (30 VUs) | 320.42 ± 93.69 | 46.89 ± 27.81 | 71.42 ± 29.20 | 71.42 ± 29.20 | 95.01% | **0** |
+| **EXP 4** | Monolith + Optimistic + Distributed | Monolith (:5001) | OPTIMISTIC | Distributed (30 VUs) | 153.80 ± 30.03 | 127.46 ± 26.27 | 264.23 ± 111.29 | 264.23 ± 111.29 | 93.46% | **0** |
+| **EXP 5** | Microservice + Pessimistic + Hotspot | Microservice (:5002) | PESSIMISTIC | Hotspot (50 VUs) | 244.91 ± 13.51 | 5.18 ± 1.66 | 56.35 ± 26.25 | 56.35 ± 26.25 | 99.32% | **0** |
+| **EXP 6** | Microservice + Optimistic + Hotspot | Microservice (:5002) | OPTIMISTIC | Hotspot (50 VUs) | 250.41 ± 2.40 | 6.47 ± 1.66 | 40.59 ± 4.04 | 40.59 ± 4.04 | 99.32% | **0** |
+| **EXP 7** | Microservice + Pessimistic + Distributed | Microservice (:5002) | PESSIMISTIC | Distributed (30 VUs) | **342.64 ± 102.84** | 39.48 ± 27.25 | **64.94 ± 28.14** | **64.94 ± 28.14** | 95.26% | **0** |
+| **EXP 8** | Microservice + Optimistic + Distributed | Microservice (:5002) | OPTIMISTIC | Distributed (30 VUs) | 184.10 ± 23.35 | 109.45 ± 19.96 | 141.48 ± 26.98 | 141.48 ± 26.98 | 94.61% | **0** |
+
+*Raw data files: `experiments/results/raw_experiment_runs.json`, `experiments/results/raw_experiment_runs.csv`, `experiments/results/aggregated_summary.json`.*
+
+### 10.3 Empirical Hypothesis Validation
+
+#### Hypothesis H1: Locking Strategy Comparison
+- **Finding 1 (Distributed Throughput):** Under distributed seating across the 100-seat hall, **Pessimistic locking achieved 1.86× to 2.08× higher throughput** than un-retried Optimistic CAS (320.42 vs 153.80 RPS on Monolith; 342.64 vs 184.10 RPS on Microservice).
+- **Finding 2 (Tail Latency Under Contention):** Optimistic CAS exhibited significantly worse 95th percentile latency under distributed load (264.23ms vs 71.42ms on Monolith) because users competing for adjacent seats caused repeated CAS version mismatches.
+- **Finding 3 (Hotspot Serialization):** In hotspot single-seat flash sales, both engines maintained **100% integrity with 0 double bookings**. Optimistic CAS achieved lower p95 latency on the isolated microservice (40.59ms vs 56.35ms) by aborting mismatched versions immediately without holding PostgreSQL lock memory.
+
+#### Hypothesis H2: Architecture Isolation Comparison
+- **Finding 1 (Throughput Superiority):** The isolated Booking Microservice achieved higher peak throughput across all combinations (Peak: **342.64 RPS** vs 320.42 RPS).
+- **Finding 2 (Median Latency Reduction):** The Microservice reduced median (p50) latency under hotspot contention from **16.96ms - 22.85ms** down to **5.18ms - 6.47ms** (a **3.2× to 3.5× improvement**). This confirms that decoupling transaction-heavy booking operations from general monolithic route handling and database pool competition delivers substantial performance gains.
 
 ---
 
@@ -684,9 +757,9 @@ The SHOWBEE platform establishes that high-concurrency seat reservation integrit
    - Pessimistic locking eliminates wasteful application retry storms and provides predictable, deterministic FIFO arrival ordering without double-booking risk.
 2. **When to Choose Optimistic Concurrency (Atomic CAS `v+1`)**:
    - **Standard cinema showings, distributed auditorium seating, and high-capacity venues**.
-   - Optimistic concurrency achieves **~3x lower latency** and **~2.7x higher throughput** by releasing database locks immediately.
+   - Optimistic concurrency achieves non-blocking execution when contention is low, provided an application-level exponential backoff retry loop is in place.
 3. **When to Evolve from Monolith to Microservices**:
-   - Extracting the booking pipeline into an isolated microservice (`Port 5002`) is strongly recommended when high-velocity ticket drop spikes threaten to exhaust database connection pools or destabilize catalog browsing. Dedicated pools and stateless token propagation guarantee checkout resilience under peak enterprise load.
+   - Extracting the booking pipeline into an isolated microservice (`Port 5002`) is strongly recommended when ticket drop spikes threaten to exhaust database connection pools or destabilize catalog browsing. Dedicated pools and stateless token propagation guarantee checkout resilience under peak enterprise load.
 
 ---
 

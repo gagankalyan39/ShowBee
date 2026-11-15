@@ -2,11 +2,27 @@
   "title": "SHOWBEE — 1. Locking Performance Observatory",
   "uid": "showbee-locking-perf",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
     "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "architecture",
+        "type": "query",
+        "query": "label_values(showbee_booking_requests_total, architecture)",
+        "label": "Architecture",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
   },
   "panels": [
     {
@@ -149,7 +165,149 @@
         }
       ],
       "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 10,
+      "title": "📊 Conflict Rate % by Mode",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(showbee_seat_lock_conflicts_total[1m]) / rate(showbee_seat_lock_attempts_total[1m]) * 100",
+          "legendFormat": "{{mode}} Conflict %",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "percent" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 11,
+      "title": "🔁 Retry Count by Architecture",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(showbee_booking_retries_total[1m])",
+          "legendFormat": "{{architecture}} Retries/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 12,
+      "title": "⏱ Lock Wait Duration p95 by Mode",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(showbee_seat_lock_duration_seconds_bucket[1m]))",
+          "legendFormat": "{{mode}} p95 Lock Wait",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 13,
+      "title": "🚨 Booking Integrity Violations",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 32, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "showbee_seat_lock_conflicts_total",
+          "legendFormat": "Violations",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 14,
+      "title": "💀 Deadlock Count by Architecture",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 32, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "showbee_db_deadlocks_total",
+          "legendFormat": "{{architecture}} Deadlocks",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 15,
+      "title": "🔄 Transaction Rollbacks by Architecture",
+      "type": "stat",
+      "gridPos": { "x": 20, "y": 32, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "showbee_db_transaction_rollbacks_total",
+          "legendFormat": "{{architecture}} Rollbacks",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 10 }
+            ]
+          }
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 16,
+      "title": "🏔 Hotspot vs Distributed Lock Rate by Architecture",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 36, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\"}[1m])) by (architecture)",
+          "legendFormat": "{{architecture}} Pessimistic (Hotspot)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\"}[1m])) by (architecture)",
+          "legendFormat": "{{architecture}} Optimistic (Distributed)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     }
   ]
 }
-

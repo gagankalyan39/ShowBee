@@ -328,3 +328,4 @@ Follow these steps for a live presentation demo:
      npx tsx src/tests/verify_phase2_concurrency.ts
      ```
    - Highlight the 10/10 test pass log verifying zero double bookings.
+

@@ -10,7 +10,8 @@
         "test:coverage": "jest --coverage",
         "test": "jest --forceExit --detectOpenHandles",
         "start": "node dist/index.js",
-        "dev": "tsx watch src/index.ts"
+        "dev": "tsx watch src/index.ts",
+        "run-exp4": "ts-node src/scripts/runExperiments4Config.ts"
     },
     "keywords": [],
     "author": "",

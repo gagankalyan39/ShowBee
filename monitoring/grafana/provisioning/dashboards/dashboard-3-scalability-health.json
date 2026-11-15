@@ -2,11 +2,22 @@
   "title": "SHOWBEE — 3. Scalability & System Health Observatory",
   "uid": "showbee-scalability-health",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
     "to": "now"
+  },
+  "annotations": {
+    "list": [
+      {
+        "name": "K6 Stage Transitions",
+        "type": "dashboard",
+        "enable": true,
+        "hide": false,
+        "iconColor": "blue"
+      }
+    ]
   },
   "panels": [
     {
@@ -101,7 +112,341 @@
         }
       ],
       "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 30,
+      "title": "🚀 LIVE LOAD VU STAIRCASE",
+      "type": "row",
+      "gridPos": { "x": 0, "y": 40, "w": 24, "h": 1 },
+      "collapsed": false
+    },
+    {
+      "id": 31,
+      "title": "👥 Active VU Count",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 41, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(k6_vus)",
+          "legendFormat": "Active VUs",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 1000 }
+            ]
+          },
+          "custom": {
+            "fontSize": 32
+          },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "orientation": "auto",
+        "textMode": "auto",
+        "colorMode": "background"
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 32,
+      "title": "🎯 Target VU Level",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 41, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(k6_vus_max)",
+          "legendFormat": "Target VUs",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "blue", "value": null }
+            ]
+          },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 33,
+      "title": "🏆 Peak VU Reached",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 41, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "max_over_time(sum(k6_vus)[15m:])",
+          "legendFormat": "Peak VUs",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 500 },
+              { "color": "red", "value": 2000 }
+            ]
+          },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 34,
+      "title": "📍 Current Stage (Total Iterations)",
+      "type": "stat",
+      "gridPos": { "x": 12, "y": 41, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(k6_iterations_total)",
+          "legendFormat": "Iterations",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "text", "value": null }
+            ]
+          },
+          "noValue": "0"
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "textMode": "value",
+        "colorMode": "none"
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 35,
+      "title": "⚡ Live Bookings/s",
+      "type": "stat",
+      "gridPos": { "x": 16, "y": 41, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_booking_requests_total[30s]))",
+          "legendFormat": "Bookings/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 100 },
+              { "color": "red", "value": 500 }
+            ]
+          },
+          "unit": "reqps",
+          "noValue": "0",
+          "custom": { "fontSize": 28 }
+        }
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background"
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 36,
+      "title": "❌ Failure Rate %",
+      "type": "gauge",
+      "gridPos": { "x": 20, "y": 41, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "clamp_max(sum(rate(showbee_http_errors_total[30s])) / (sum(rate(showbee_http_requests_total[30s])) + 0.001) * 100, 100)",
+          "legendFormat": "Failure %",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 5 },
+              { "color": "red", "value": 20 }
+            ]
+          },
+          "noValue": "0"
+        }
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 37,
+      "title": "⏱ Response p50",
+      "type": "stat",
+      "gridPos": { "x": 0, "y": 45, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(showbee_http_request_duration_seconds_bucket[30s])) by (le))",
+          "legendFormat": "p50",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 0.5 },
+              { "color": "red", "value": 2 }
+            ]
+          },
+          "noValue": "N/A"
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 38,
+      "title": "⏱ Response p95",
+      "type": "stat",
+      "gridPos": { "x": 4, "y": 45, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket[30s])) by (le))",
+          "legendFormat": "p95",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 1 },
+              { "color": "red", "value": 5 }
+            ]
+          },
+          "noValue": "N/A"
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 39,
+      "title": "⏱ Response p99",
+      "type": "stat",
+      "gridPos": { "x": 8, "y": 45, "w": 4, "h": 4 },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(showbee_http_request_duration_seconds_bucket[30s])) by (le))",
+          "legendFormat": "p99",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 2 },
+              { "color": "red", "value": 8 }
+            ]
+          },
+          "noValue": "N/A"
+        }
+      },
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"] } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 40,
+      "title": "📈 VU Staircase Graph — Active VUs & Booking RPS",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 45, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "sum(k6_vus)",
+          "legendFormat": "Active VUs",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        },
+        {
+          "expr": "sum(rate(showbee_booking_requests_total[30s]))",
+          "legendFormat": "Booking RPS",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {
+            "axisPlacement": "auto",
+            "lineWidth": 2
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "Booking RPS" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "right" },
+              { "id": "unit", "value": "reqps" }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "Active VUs" },
+            "properties": [
+              { "id": "custom.axisPlacement", "value": "left" },
+              { "id": "unit", "value": "short" }
+            ]
+          }
+        ]
+      },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     }
   ]
 }
-

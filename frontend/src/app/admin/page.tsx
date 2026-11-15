@@ -54,6 +54,7 @@ import {
 import GrafanaLiveDashboard from '../../components/GrafanaLiveDashboard';
 import ImageDropzone from '../../components/ImageDropzone';
 import GalleryDropzone from '../../components/GalleryDropzone';
+import ArchitectureStarRatings from '../../components/ArchitectureStarRatings';
 
 export default function AdminDashboardPage() {
   const { user, isAdmin, isLoading: authLoading, login } = useAuth();
@@ -1065,6 +1066,11 @@ export default function AdminDashboardPage() {
                     </div>
                   );
                 })}
+              </div>
+
+              {/* Research Hypotheses & Architecture Star Rating Comparison */}
+              <div className="pt-4 border-t border-white/[0.08]">
+                <ArchitectureStarRatings />
               </div>
             </div>
           )}

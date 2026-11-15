@@ -3,6 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { systemAPI } from '@/lib/api';
+import ArchitectureStarRatings from '@/components/ArchitectureStarRatings';
 import { 
   Users, 
   CheckCircle2, 
@@ -654,6 +655,9 @@ export default function TeamArchitecturePage() {
           </div>
         </div>
       )}
+
+      {/* Architectural Reference vs Empirical Benchmark Scorecard */}
+      <ArchitectureStarRatings />
 
       {/* College Project Presentation Guide */}
       <div className="p-6 sm:p-8 rounded-3xl glass-panel space-y-4">

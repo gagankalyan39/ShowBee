@@ -2,11 +2,39 @@
   "title": "SHOWBEE — 2. Architecture Comparison (Monolith vs Microservice)",
   "uid": "showbee-arch-comparison",
   "schemaVersion": 38,
-  "version": 1,
+  "version": 2,
   "refresh": "5s",
   "time": {
     "from": "now-15m",
     "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "architecture",
+        "type": "query",
+        "query": "label_values(showbee_booking_requests_total, architecture)",
+        "label": "Architecture",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "refresh": 2,
+        "sort": 1
+      },
+      {
+        "name": "locking_mode",
+        "type": "query",
+        "query": "label_values(showbee_seat_lock_attempts_total, mode)",
+        "label": "Locking Mode",
+        "includeAll": true,
+        "multi": true,
+        "current": { "text": "All", "value": "$__all" },
+        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "refresh": 2,
+        "sort": 1
+      }
+    ]
   },
   "panels": [
     {
@@ -125,7 +153,78 @@
       ],
       "fieldConfig": { "defaults": { "unit": "mbytes" } },
       "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 20,
+      "title": "🖥 CPU Proxy (Avg Request Duration) by Architecture",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(showbee_http_request_duration_seconds_sum[1m]) / rate(showbee_http_request_duration_seconds_count[1m])",
+          "legendFormat": "{{architecture}} Avg Duration (CPU Proxy)",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 21,
+      "title": "🔄 Event Loop Lag Proxy (p99 Latency) by Architecture",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "showbee_http_request_duration_seconds{quantile=\"0.99\"}",
+          "legendFormat": "{{architecture}} p99 Latency",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "fieldConfig": { "defaults": { "unit": "s" } },
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 22,
+      "title": "🗄 DB Waiting Connections by Architecture",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "showbee_db_pool_waiting_count",
+          "legendFormat": "{{architecture}} Waiting Connections",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 23,
+      "title": "❌ HTTP Error Comparison by Architecture",
+      "type": "timeseries",
+      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(showbee_http_errors_total{architecture=~\"$architecture\"}[1m])",
+          "legendFormat": "{{architecture}} Errors/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
+    },
+    {
+      "id": 24,
+      "title": "🔒 Lock Mode Performance: Success Rate by Mode & Architecture",
+      "type": "timeseries",
+      "gridPos": { "x": 0, "y": 40, "w": 24, "h": 8 },
+      "targets": [
+        {
+          "expr": "rate(showbee_seat_lock_successes_total{mode=~\"$locking_mode\"}[1m])",
+          "legendFormat": "{{architecture}} / {{mode}} Success/s",
+          "datasource": { "type": "prometheus", "uid": "prometheus" }
+        }
+      ],
+      "datasource": { "type": "prometheus", "uid": "prometheus" }
     }
   ]
 }
-

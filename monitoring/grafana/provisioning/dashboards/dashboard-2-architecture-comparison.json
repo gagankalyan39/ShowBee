@@ -17,8 +17,14 @@
         "label": "Architecture",
         "includeAll": true,
         "multi": true,
-        "current": { "text": "All", "value": "$__all" },
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "refresh": 2,
         "sort": 1
       },
@@ -29,8 +35,14 @@
         "label": "Locking Mode",
         "includeAll": true,
         "multi": true,
-        "current": { "text": "All", "value": "$__all" },
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "refresh": 2,
         "sort": 1
       }
@@ -41,190 +53,439 @@
       "id": 1,
       "title": "🏗 HTTP Requests per Second (RPS)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(rate(showbee_http_requests_total{architecture=\"monolith\"}[1m]))",
           "legendFormat": "Monolith (port 5001)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "sum(rate(showbee_http_requests_total{architecture=\"microservice\"}[1m]))",
           "legendFormat": "Microservice (port 5002)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 2,
       "title": "🎟 Confirmed Bookings Processed / Sec",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(rate(showbee_booking_creations_total{status=\"confirmed\",architecture=\"monolith\"}[1m]))",
           "legendFormat": "Monolith Confirmed/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "sum(rate(showbee_booking_creations_total{status=\"confirmed\",architecture=\"microservice\"}[1m]))",
           "legendFormat": "Microservice Confirmed/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 3,
       "title": "⏱ HTTP Response Time: p95 & p99 Latency Comparison",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 24, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 24,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"monolith\"}[1m])) by (le)) * 1000",
           "legendFormat": "Monolith p95",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "histogram_quantile(0.99, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"monolith\"}[1m])) by (le)) * 1000",
           "legendFormat": "Monolith p99",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"microservice\"}[1m])) by (le)) * 1000",
           "legendFormat": "Microservice p95",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "histogram_quantile(0.99, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"microservice\"}[1m])) by (le)) * 1000",
           "legendFormat": "Microservice p99",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "ms" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 4,
       "title": "🗄 DB Pool Active & Idle Connections Comparison",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "showbee_db_pool_active_connections{architecture=\"monolith\"}",
           "legendFormat": "Monolith Active Connections",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "showbee_db_pool_active_connections{architecture=\"microservice\"}",
           "legendFormat": "Microservice Active Connections",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "showbee_db_pool_idle_connections{architecture=\"monolith\"}",
           "legendFormat": "Monolith Idle Connections",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "showbee_db_pool_idle_connections{architecture=\"microservice\"}",
           "legendFormat": "Microservice Idle Connections",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 5,
       "title": "💻 Process Memory Utilization (MB)",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "showbee_runtime_process_resident_memory_bytes{job=\"showbee-monolith\"} / 1024 / 1024",
           "legendFormat": "Monolith RSS (MB)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "showbee_runtime_process_resident_memory_bytes{job=\"showbee-booking-microservice\"} / 1024 / 1024",
           "legendFormat": "Microservice RSS (MB)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "mbytes" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "mbytes"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 20,
       "title": "🖥 CPU Proxy (Avg Request Duration) by Architecture",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "rate(showbee_http_request_duration_seconds_sum[1m]) / rate(showbee_http_request_duration_seconds_count[1m])",
           "legendFormat": "{{architecture}} Avg Duration (CPU Proxy)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 21,
-      "title": "🔄 Event Loop Lag Proxy (p99 Latency) by Architecture",
+      "title": "🔄 Event Loop Lag by Architecture",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
-          "expr": "showbee_http_request_duration_seconds{quantile=\"0.99\"}",
-          "legendFormat": "{{architecture}} p99 Latency",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "expr": "showbee_runtime_nodejs_eventloop_lag_seconds",
+          "legendFormat": "{{job}} ({{architecture}})",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "s" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 22,
       "title": "🗄 DB Waiting Connections by Architecture",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "showbee_db_pool_waiting_count",
           "legendFormat": "{{architecture}} Waiting Connections",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 23,
       "title": "❌ HTTP Error Comparison by Architecture",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 32, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "rate(showbee_http_errors_total{architecture=~\"$architecture\"}[1m])",
           "legendFormat": "{{architecture}} Errors/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 24,
       "title": "🔒 Lock Mode Performance: Success Rate by Mode & Architecture",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 40, "w": 24, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "rate(showbee_seat_lock_successes_total{mode=~\"$locking_mode\"}[1m])",
           "legendFormat": "{{architecture}} / {{mode}} Success/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 50,
+      "title": "🔬 RESEARCH HYPOTHESIS EVALUATION: H1, H2, H3, H4 (ARCHITECTURAL DIVERGENCE)",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 51,
+      "title": "⚖️ H1: Monolith vs Microservices Live Throughput Ratio",
+      "description": "H1: Architectural style significantly influences system throughput. If ratio diverges from 1.0, H0_1 is rejected.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_http_requests_total{architecture=\"monolith\"}[1m]))",
+          "legendFormat": "Monolith (req/s)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "sum(rate(showbee_http_requests_total{architecture=\"microservice\"}[1m]))",
+          "legendFormat": "Microservice (req/s)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2
+          }
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 52,
+      "title": "⏱ H4: Tail Latency Comparison (p95 & p99)",
+      "description": "H4: In-process module calls vs IPC overhead under high concurrent load.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"monolith\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Monolith p95 (ms)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"microservice\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Microservice p95 (ms)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "custom": {
+            "lineWidth": 2
+          }
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     }
   ]
 }

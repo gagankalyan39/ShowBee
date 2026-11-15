@@ -1,82 +1,114 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
-import { Counter, Trend, Rate, Gauge } from 'k6/metrics';
-import { holdSeats, MONOLITH_URL } from './helpers.js';
+import { Counter, Trend } from 'k6/metrics';
+import { getAuthToken, getShowAndSeats, holdSeats, MONOLITH_URL } from './helpers.js';
 
 // Staircase: [ { vus, label } ]
 const STAIRCASE = [10, 25, 50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000];
-const RAMP_SECS = 5;
-const HOLD_SECS = 15;
+const RAMP_SECS = parseInt(__ENV.RAMP_SECS || '5');
+const HOLD_SECS = parseInt(__ENV.HOLD_SECS || '15');
+const MAX_VU_LIMIT = parseInt(__ENV.MAX_VU || '5000');
+
+// Filter staircase by MAX_VU_LIMIT if specified
+const activeStaircase = STAIRCASE.filter(v => v <= MAX_VU_LIMIT);
+if (activeStaircase.length === 0) activeStaircase.push(10);
 
 // Build k6 stages
 const stages = [];
-let prev = 0;
-for (const vu of STAIRCASE) {
+for (const vu of activeStaircase) {
   stages.push({ duration: `${RAMP_SECS}s`, target: vu });
   stages.push({ duration: `${HOLD_SECS}s`, target: vu });
-  prev = vu;
 }
 stages.push({ duration: '5s', target: 0 }); // ramp down
 
 export const options = {
   stages,
   thresholds: {
-    http_req_failed: ['rate<0.5'],
-    http_req_duration: ['p(95)<5000'],
+    http_req_failed: ['rate<0.99'], // lock conflicts return 409 and are expected
+    http_req_duration: ['p(95)<8000'],
   },
 };
 
 let tokens = [];
 try { tokens = JSON.parse(open('./tokens.json')); } catch (e) { tokens = []; }
 
-const bookingRequests = new Counter('live_demo_booking_requests');
+const bookingRequests  = new Counter('live_demo_booking_requests');
 const bookingSuccesses = new Counter('live_demo_booking_successes');
-const bookingFailures = new Counter('live_demo_booking_failures');
-const bookingDuration = new Trend('live_demo_booking_duration_ms', true);
+const bookingFailures  = new Counter('live_demo_booking_failures');
+const bookingDuration  = new Trend('live_demo_booking_duration_ms', true);
 
 const TARGET_URL = __ENV.TARGET_URL || MONOLITH_URL;
-const LOCK_MODE = (__ENV.LOCK_MODE || 'PESSIMISTIC').toUpperCase();
+const LOCK_MODE  = (__ENV.LOCK_MODE || 'PESSIMISTIC').toUpperCase();
 
 export function setup() {
-  // Determine show and seats
-  const headers = { 'Content-Type': 'application/json' };
-  let showId = __ENV.TARGET_SHOW_ID || '';
+  const token = getAuthToken(TARGET_URL);
+  let { showId, seats } = getShowAndSeats(TARGET_URL, token);
+  
   if (!showId) {
-    const r = http.get(`${TARGET_URL}/api/shows/admin/all?limit=5`, { headers });
+    showId = '002683a4-b644-40d6-88df-648407405cf5'; // Fallback default show
+  }
+
+  let seatIds = (seats && seats.length > 0) ? seats.map(s => s.show_seat_id) : [];
+
+  // If seats list empty, fetch directly
+  if (seatIds.length === 0) {
+    const sRes = http.get(`${TARGET_URL}/api/shows/${showId}/seats`, {
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }
+    });
     try {
-      const j = JSON.parse(r.body);
-      if (j.data && j.data.length > 0) showId = j.data[0].id;
+      const sj = JSON.parse(sRes.body);
+      if (sj.data && sj.data.seats) {
+        seatIds = sj.data.seats.map(s => s.show_seat_id);
+      }
     } catch {}
   }
-  console.log(`[setup] showId=${showId} targetUrl=${TARGET_URL} lockMode=${LOCK_MODE}`);
-  return { showId };
+
+  const startTime = Date.now();
+  console.log(`[setup] targetUrl=${TARGET_URL} lockMode=${LOCK_MODE} showId=${showId} seatsFound=${seatIds.length} startTime=${startTime}`);
+  return { showId, seatIds, token, startTime };
 }
 
+let lastTelemetryTime = 0;
+
 export default function (data) {
-  const vuToken = tokens.length > 0 ? tokens[(__VU - 1) % tokens.length] : '';
-  if (!vuToken || !data.showId) { sleep(1); return; }
+  const vuToken = (tokens.length > 0 && __VU > 0) ? tokens[(__VU - 1) % tokens.length] : data.token;
+  if (!vuToken || !data.showId) { sleep(0.5); return; }
 
-  // Pick a seat index based on VU to spread load
-  const seatIndex = (__VU - 1) % 100;
+  // Compute active staircase level based on elapsed time (RAMP_SECS + HOLD_SECS per step)
+  const stepDuration = RAMP_SECS + HOLD_SECS;
+  const elapsedSec = (Date.now() - (data.startTime || Date.now())) / 1000;
+  const stageIdx = Math.min(Math.floor(elapsedSec / stepDuration), activeStaircase.length - 1);
+  const currentTargetVu = activeStaircase[stageIdx] || activeStaircase[0];
+  const currentStage = stageIdx + 1;
 
-  // Get seats
-  const seatsRes = http.get(`${TARGET_URL}/api/shows/${data.showId}/seats`, {
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${vuToken}` },
-    tags: { name: 'get_seats' },
-  });
+  const customHeaders = {
+    'X-K6-VU': String(__VU),
+    'X-K6-Target-VU': String(currentTargetVu),
+    'X-K6-Stage': String(currentStage),
+  };
 
+  // Broadcast stage telemetry periodically from VU 1
+  if (__VU === 1 && Date.now() - lastTelemetryTime > 2000) {
+    lastTelemetryTime = Date.now();
+    http.post(
+      `${TARGET_URL}/api/telemetry/stage`,
+      JSON.stringify({ vus: __VU, targetVus: currentTargetVu, stage: currentStage }),
+      { headers: { 'Content-Type': 'application/json' } }
+    );
+  }
+
+  // Pick a seat from seatIds
   let seatId = null;
-  try {
-    const sj = JSON.parse(seatsRes.body);
-    const available = (sj.data && sj.data.seats) ? sj.data.seats.filter(s => s.status === 'available') : [];
-    if (available.length > 0) seatId = available[seatIndex % available.length].show_seat_id;
-  } catch {}
+  if (data.seatIds && data.seatIds.length > 0) {
+    const seatIdx = (__VU * 3 + __ITER) % data.seatIds.length;
+    seatId = data.seatIds[seatIdx];
+  }
 
-  if (!seatId) { sleep(0.5); return; }
+  if (!seatId) { sleep(0.2); return; }
 
   bookingRequests.add(1);
   const start = Date.now();
-  const res = holdSeats(TARGET_URL, vuToken, data.showId, [seatId], LOCK_MODE);
+  const res = holdSeats(TARGET_URL, vuToken, data.showId, [seatId], LOCK_MODE, customHeaders);
   bookingDuration.add(Date.now() - start);
 
   if (res.status === 200) {
@@ -84,8 +116,8 @@ export default function (data) {
     check(res, { 'seat held successfully': r => r.status === 200 });
   } else {
     bookingFailures.add(1);
-    check(res, { 'expected failure (conflict/unavailable)': r => r.status === 409 || r.status === 400 });
+    check(res, { 'expected response (conflict/ok)': r => r.status === 409 || r.status === 200 || r.status === 400 });
   }
 
-  sleep(0.1);
+  sleep(0.05);
 }

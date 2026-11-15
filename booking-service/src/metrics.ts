@@ -9,7 +9,7 @@ export const register = new Registry();
 // Collect standard OS & Node.js runtime metrics (CPU, Memory, Event Loop, GC)
 collectDefaultMetrics({ register, prefix: 'showbee_runtime_' });
 
-const CURRENT_ARCH = process.env.ARCHITECTURE_LABEL || 'microservice';
+const CURRENT_ARCH = (process.env.ARCHITECTURE_LABEL || 'microservice').trim();
 
 // ── Seat Locking Metrics ─────────────────────────────────────
 export const seatLockAttempts = new Counter({
@@ -182,6 +182,35 @@ export const benchmarkUsers = new Counter({
   registers: [register],
 });
 
+// ── Live Load & Virtual Users Metrics ────────────────────────
+export const activeVirtualUsers = new Gauge({
+  name: 'showbee_active_virtual_users',
+  help: 'Active virtual users currently executing load test',
+  labelNames: ['architecture'],
+  registers: [register],
+});
+
+export const targetVirtualUsers = new Gauge({
+  name: 'showbee_target_virtual_users',
+  help: 'Target virtual users for current load stage',
+  labelNames: ['architecture'],
+  registers: [register],
+});
+
+export const currentLoadStage = new Gauge({
+  name: 'showbee_current_load_stage',
+  help: 'Current active load stage in staircase',
+  labelNames: ['architecture'],
+  registers: [register],
+});
+
+export const doubleBookingViolations = new Counter({
+  name: 'showbee_double_booking_violations_total',
+  help: 'Total confirmed duplicate bookings for same seat (must always be 0)',
+  labelNames: ['architecture'],
+  registers: [register],
+});
+
 // Helper for dual recording of success
 export function recordSeatLockSuccess(mode: string, arch: string) {
   seatLockSuccess.labels(mode, arch).inc();
@@ -206,3 +235,7 @@ dbPoolIdle.labels(CURRENT_ARCH).set(0);
 dbPoolWaiting.labels(CURRENT_ARCH).set(0);
 dbDeadlocks.labels(CURRENT_ARCH).inc(0);
 dbTransactionRollbacks.labels(CURRENT_ARCH).inc(0);
+activeVirtualUsers.labels(CURRENT_ARCH).set(0);
+targetVirtualUsers.labels(CURRENT_ARCH).set(0);
+currentLoadStage.labels(CURRENT_ARCH).set(0);
+doubleBookingViolations.labels(CURRENT_ARCH).inc(0);

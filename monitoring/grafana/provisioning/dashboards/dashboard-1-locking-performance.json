@@ -17,8 +17,14 @@
         "label": "Architecture",
         "includeAll": true,
         "multi": true,
-        "current": { "text": "All", "value": "$__all" },
-        "datasource": { "type": "prometheus", "uid": "prometheus" },
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "datasource": {
+          "type": "prometheus",
+          "uid": "prometheus"
+        },
         "refresh": 2,
         "sort": 1
       }
@@ -29,285 +35,631 @@
       "id": 1,
       "title": "🔒 Locking Throughput: Pessimistic vs Optimistic (req/s)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 0, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\"}[1m]))",
           "legendFormat": "Pessimistic Attempts/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\"}[1m]))",
           "legendFormat": "Optimistic Attempts/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 2,
       "title": "⚡ Lock Conflicts / Collisions per Second",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 0, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"pessimistic\"}[1m]))",
           "legendFormat": "Pessimistic Conflicts/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"optimistic\"}[1m]))",
           "legendFormat": "Optimistic Conflicts/s (CAS Mismatch)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 3,
       "title": "⏱ Lock Duration Percentiles — Pessimistic (p50 / p95 / p99)",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"pessimistic\"}[1m])) by (le)) * 1000",
           "legendFormat": "p50 Pessimistic",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "histogram_quantile(0.95, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"pessimistic\"}[1m])) by (le)) * 1000",
           "legendFormat": "p95 Pessimistic",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "histogram_quantile(0.99, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"pessimistic\"}[1m])) by (le)) * 1000",
           "legendFormat": "p99 Pessimistic",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "ms" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 4,
       "title": "⏱ Lock Duration Percentiles — Optimistic (p50 / p95 / p99)",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.50, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"optimistic\"}[1m])) by (le)) * 1000",
           "legendFormat": "p50 Optimistic",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "histogram_quantile(0.95, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"optimistic\"}[1m])) by (le)) * 1000",
           "legendFormat": "p95 Optimistic",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "histogram_quantile(0.99, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=\"optimistic\"}[1m])) by (le)) * 1000",
           "legendFormat": "p99 Optimistic",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "ms" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 5,
       "title": "✅ Successful Seat Holds / Sec",
       "type": "stat",
-      "gridPos": { "x": 0, "y": 16, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
       "targets": [
         {
           "expr": "sum(rate(showbee_seat_lock_success_total{mode=\"pessimistic\"}[1m]))",
           "legendFormat": "Pessimistic Success/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "sum(rate(showbee_seat_lock_success_total{mode=\"optimistic\"}[1m]))",
           "legendFormat": "Optimistic Success/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 6,
       "title": "🔁 Conflict Rate Percentage",
       "type": "gauge",
-      "gridPos": { "x": 8, "y": 16, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 8,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
       "targets": [
         {
           "expr": "clamp_max((sum(rate(showbee_seat_lock_conflicts_total{mode=\"pessimistic\"}[1m])) / (sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\"}[1m])) + 0.0001)) * 100, 100)",
           "legendFormat": "Pessimistic Conflict %",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "clamp_max((sum(rate(showbee_seat_lock_conflicts_total{mode=\"optimistic\"}[1m])) / (sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\"}[1m])) + 0.0001)) * 100, 100)",
           "legendFormat": "Optimistic Conflict %",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "min": 0, "max": 100, "unit": "percent" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "min": 0,
+          "max": 100,
+          "unit": "percent"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 7,
       "title": "🔄 Booking Retries per Second",
       "type": "stat",
-      "gridPos": { "x": 16, "y": 16, "w": 8, "h": 6 },
+      "gridPos": {
+        "x": 16,
+        "y": 16,
+        "w": 8,
+        "h": 6
+      },
       "targets": [
         {
           "expr": "sum(rate(showbee_booking_retries_total[1m]))",
           "legendFormat": "Retries/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 10,
       "title": "📊 Conflict Rate % by Mode",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 24, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "rate(showbee_seat_lock_conflicts_total[1m]) / rate(showbee_seat_lock_attempts_total[1m]) * 100",
           "legendFormat": "{{mode}} Conflict %",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "fieldConfig": { "defaults": { "unit": "percent" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 11,
       "title": "🔁 Retry Count by Architecture",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 24, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "rate(showbee_booking_retries_total[1m])",
           "legendFormat": "{{architecture}} Retries/s",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 12,
       "title": "⏱ Lock Wait Duration p95 by Mode",
       "type": "timeseries",
-      "gridPos": { "x": 0, "y": 32, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "histogram_quantile(0.95, rate(showbee_seat_lock_duration_seconds_bucket[1m]))",
           "legendFormat": "{{mode}} p95 Lock Wait",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
-        }
-      ],
-      "fieldConfig": { "defaults": { "unit": "s" } },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
-    },
-    {
-      "id": 13,
-      "title": "🚨 Booking Integrity Violations",
-      "type": "stat",
-      "gridPos": { "x": 12, "y": 32, "w": 4, "h": 4 },
-      "targets": [
-        {
-          "expr": "showbee_seat_lock_conflicts_total",
-          "legendFormat": "Violations",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "unit": "s"
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 13,
+      "title": "🛡 Booking Integrity Violations (Double Bookings)",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 4,
+        "h": 4
+      },
+      "targets": [
+        {
+          "expr": "sum(showbee_double_booking_violations_total)",
+          "legendFormat": "Violations",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "red", "value": 1 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
             ]
-          }
+          },
+          "noValue": "0"
         }
       },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 14,
       "title": "💀 Deadlock Count by Architecture",
       "type": "stat",
-      "gridPos": { "x": 16, "y": 32, "w": 4, "h": 4 },
+      "gridPos": {
+        "x": 16,
+        "y": 32,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
           "expr": "showbee_db_deadlocks_total",
           "legendFormat": "{{architecture}} Deadlocks",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 5 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
             ]
           }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 15,
       "title": "🔄 Transaction Rollbacks by Architecture",
       "type": "stat",
-      "gridPos": { "x": 20, "y": 32, "w": 4, "h": 4 },
+      "gridPos": {
+        "x": 20,
+        "y": 32,
+        "w": 4,
+        "h": 4
+      },
       "targets": [
         {
           "expr": "showbee_db_transaction_rollbacks_total",
           "legendFormat": "{{architecture}} Rollbacks",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
       "fieldConfig": {
         "defaults": {
-          "color": { "mode": "thresholds" },
+          "color": {
+            "mode": "thresholds"
+          },
           "thresholds": {
             "mode": "absolute",
             "steps": [
-              { "color": "green", "value": null },
-              { "color": "yellow", "value": 1 },
-              { "color": "red", "value": 10 }
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 1
+              },
+              {
+                "color": "red",
+                "value": 10
+              }
             ]
           }
         }
       },
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     },
     {
       "id": 16,
       "title": "🏔 Hotspot vs Distributed Lock Rate by Architecture",
       "type": "timeseries",
-      "gridPos": { "x": 12, "y": 36, "w": 12, "h": 8 },
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
       "targets": [
         {
           "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\"}[1m])) by (architecture)",
           "legendFormat": "{{architecture}} Pessimistic (Hotspot)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         },
         {
           "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\"}[1m])) by (architecture)",
           "legendFormat": "{{architecture}} Optimistic (Distributed)",
-          "datasource": { "type": "prometheus", "uid": "prometheus" }
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
         }
       ],
-      "datasource": { "type": "prometheus", "uid": "prometheus" }
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 50,
+      "title": "🔬 RESEARCH HYPOTHESIS EVALUATION: H5 (PCC vs OCC) & H6 (INTEGRITY)",
+      "type": "row",
+      "gridPos": {
+        "x": 0,
+        "y": 35,
+        "w": 24,
+        "h": 1
+      },
+      "collapsed": false
+    },
+    {
+      "id": 51,
+      "title": "⚡ H5: Pessimistic vs Optimistic Conflict Rates (Hotspot & Distributed)",
+      "description": "Validates Hypothesis H5: Contention level dictates locking performance. Under high contention, OCC triggers CAS retry storms, while PCC queues with SELECT FOR UPDATE.",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"pessimistic\"}[1m]))",
+          "legendFormat": "Pessimistic Conflicts/s (409 Conflict)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"optimistic\"}[1m]))",
+          "legendFormat": "Optimistic CAS Conflicts/s (Version Mismatch)",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "cps",
+          "custom": {
+            "lineWidth": 2
+          }
+        }
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
+    },
+    {
+      "id": 52,
+      "title": "🛡 H6: Real-Time Data Integrity Verification (Zero Double Bookings)",
+      "description": "Validates Hypothesis H6 & Rejects H0_3: Zero race condition duplicate bookings across all concurrent loads.",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 36,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "expr": "sum(showbee_double_booking_violations_total)",
+          "legendFormat": "Violations",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          },
+          "noValue": "0",
+          "custom": {
+            "fontSize": 40
+          }
+        }
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "background"
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      }
     }
   ]
 }

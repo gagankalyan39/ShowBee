@@ -91,12 +91,13 @@ export function getShowAndSeats(baseUrl = MONOLITH_URL, token = '') {
 /**
  * Hold seats via POST /api/shows/:id/seats/hold
  */
-export function holdSeats(baseUrl, token, showId, seatIds, lockMode = 'PESSIMISTIC') {
+export function holdSeats(baseUrl, token, showId, seatIds, lockMode = 'PESSIMISTIC', customHeaders = {}) {
   const url = `${baseUrl}/api/shows/${showId}/seats/hold`;
   const payload = JSON.stringify({ seatIds, lockMode });
   const headers = {
     'Content-Type': 'application/json',
     Authorization: `Bearer ${token}`,
+    ...customHeaders,
   };
 
   return http.post(url, payload, { headers });

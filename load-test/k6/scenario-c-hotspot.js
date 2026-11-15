@@ -66,7 +66,11 @@ export default function (data) {
     if (attempts > 1) hotspotRetries.add(1);
 
     const start = Date.now();
-    const res = holdSeats(targetUrl, vuToken, data.showId, hotSeat, lockMode);
+    const res = holdSeats(targetUrl, vuToken, data.showId, hotSeat, lockMode, {
+      'X-K6-VU': String(__VU),
+      'X-K6-Target-VU': String(VUS),
+      'X-K6-Stage': '1',
+    });
     hotspotDuration.add(Date.now() - start);
 
     if (res.status === 200) {

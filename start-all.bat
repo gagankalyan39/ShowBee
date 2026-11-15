@@ -31,10 +31,10 @@ if %ERRORLEVEL% EQU 0 (
 echo.
 
 echo [2/4] Starting Monolith Backend on port 5001...
-start "ShowBee Monolith Backend :5001" cmd /k "cd /d "%~dp0backend" && set PORT=5001 && set ARCHITECTURE_LABEL=monolith && npm run dev"
+start "ShowBee Monolith Backend :5001" cmd /k "cd /d "%~dp0backend" && set PORT=5001&& set ARCHITECTURE_LABEL=monolith&& npm run dev"
 
 echo [3/4] Starting Booking Microservice on port 5002...
-start "ShowBee Booking Microservice :5002" cmd /k "cd /d "%~dp0booking-service" && set PORT=5002 && set ARCHITECTURE_LABEL=microservice && npm run dev"
+start "ShowBee Booking Microservice :5002" cmd /k "cd /d "%~dp0booking-service" && set PORT=5002&& set ARCHITECTURE_LABEL=microservice&& npm run dev"
 
 echo [4/4] Starting Frontend Web UI on port 3000...
 start "ShowBee Frontend Web :3000" cmd /k "cd /d "%~dp0frontend" && npm run dev"

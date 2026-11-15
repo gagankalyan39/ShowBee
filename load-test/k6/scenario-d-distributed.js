@@ -59,7 +59,11 @@ export default function (data) {
   distAttempts.add(1);
   const vuToken = (tokens.length > 0 && __VU > 0) ? tokens[(__VU - 1) % tokens.length] : data.token;
   const start = Date.now();
-  const res = holdSeats(targetUrl, vuToken, data.showId, chosenSeat, lockMode);
+  const res = holdSeats(targetUrl, vuToken, data.showId, chosenSeat, lockMode, {
+    'X-K6-VU': String(__VU),
+    'X-K6-Target-VU': String(VUS),
+    'X-K6-Stage': '1',
+  });
   distDuration.add(Date.now() - start);
 
   if (res.status === 200) {

@@ -8,12 +8,16 @@ import { createNotification } from '../services/notificationService';
 import { logAudit } from '../services/auditService';
 import { getIO } from '../socket';
 import { generateBookingRef, generateQR } from '../utils/helpers';
-import { bookingCreations } from '../metrics';
+import { bookingCreations, bookingAttempts, bookingSuccess, bookingDuration } from '../metrics';
 
 const router = Router();
 
 // POST /api/bookings — create booking
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+  const startTime = Date.now();
+  const ARCH = (process.env.ARCHITECTURE_LABEL || 'microservice').trim();
+  bookingAttempts.labels(ARCH).inc();
+
   const userId = req.user!.id;
   const { showId, offerCode } = req.body;
   const rawSeatIds = req.body.seatIds;
@@ -138,7 +142,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
     }
 
     await client.query('COMMIT');
-    bookingCreations.labels('pending', process.env.ARCHITECTURE_LABEL || 'microservice').inc();
+    bookingCreations.labels('pending', ARCH).inc();
+    bookingSuccess.labels(ARCH).inc();
+    bookingDuration.labels(ARCH).observe((Date.now() - startTime) / 1000);
 
     try {
       const showDetails = await query(`
@@ -172,7 +178,8 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       }
     });
   } catch (err: any) {
-    bookingCreations.labels('failed', process.env.ARCHITECTURE_LABEL || 'microservice').inc();
+    bookingCreations.labels('failed', ARCH).inc();
+    bookingDuration.labels(ARCH).observe((Date.now() - startTime) / 1000);
     await client.query('ROLLBACK');
     res.status(500).json({ success: false, message: err.message });
   } finally {

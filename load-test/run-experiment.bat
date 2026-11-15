@@ -37,11 +37,11 @@ if "%choice%"=="1" (
     "load-test\bin\k6.exe" run load-test\k6\scenario-c-hotspot.js
 ) else if "%choice%"=="5" (
     set TARGET_URL=http://localhost:5001
-    set LOCK_MODE=PESSIMISTIC
+    set LOCK_MODE=HEAD_TO_HEAD
     "load-test\bin\k6.exe" run load-test\k6\live-demo-load.js
 ) else if "%choice%"=="6" (
     set TARGET_URL=http://localhost:5002
-    set LOCK_MODE=PESSIMISTIC
+    set LOCK_MODE=HEAD_TO_HEAD
     "load-test\bin\k6.exe" run load-test\k6\live-demo-load.js
 ) else if "%choice%"=="7" (
     cd backend && npm run run-exp4

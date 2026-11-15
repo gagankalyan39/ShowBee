@@ -6,7 +6,7 @@ import { Router, Request, Response } from 'express';
 import { query, getClient } from '../db';
 import { authenticate, AuthRequest } from '../middleware/auth';
 import { getIO } from '../socket';
-import { seatLockAttempts, seatLockConflicts, seatLockSuccess, seatLockDuration } from '../metrics';
+import { seatLockAttempts, seatLockConflicts, seatLockSuccess, seatLockSuccesses, seatLockDuration, recordSeatLockSuccess } from '../metrics';
 
 const router = Router();
 
@@ -90,7 +90,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
     }
 
     const lockMode = (req.body.lockMode || 'PESSIMISTIC').toUpperCase();
-    const ARCH = process.env.ARCHITECTURE_LABEL || 'monolith';
+    const ARCH = (process.env.ARCHITECTURE_LABEL || 'monolith').trim();
     const lockModeLabel = lockMode.toLowerCase();
     seatLockAttempts.labels(lockModeLabel, ARCH).inc();
     lockTimer = seatLockDuration.labels(lockModeLabel, ARCH).startTimer();
@@ -203,7 +203,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
         }
       } catch {}
 
-      seatLockSuccess.labels(lockModeLabel, ARCH).inc(); lockTimer();
+      recordSeatLockSuccess(lockModeLabel, ARCH); lockTimer();
       return res.json({
         success: true,
         lockMode: 'OPTIMISTIC',
@@ -295,7 +295,7 @@ router.post('/:id/seats/hold', authenticate, async (req: AuthRequest, res: Respo
       }
     } catch {}
 
-    seatLockSuccess.labels(lockModeLabel, ARCH).inc(); lockTimer();
+    recordSeatLockSuccess(lockModeLabel, ARCH); lockTimer();
     res.json({
       success: true,
       lockMode: 'PESSIMISTIC',

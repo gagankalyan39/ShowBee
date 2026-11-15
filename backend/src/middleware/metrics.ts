@@ -59,6 +59,11 @@ export function metricsMiddleware(req: Request, res: Response, next: NextFunctio
   }
 
   res.on('finish', () => {
+    // Skip Prometheus scrape endpoint and health check from latency & request count metrics
+    if (req.path === '/metrics' || req.path === '/health' || req.originalUrl === '/metrics' || req.originalUrl === '/health') {
+      return;
+    }
+
     const duration = (Date.now() - start) / 1000;
     const statusCode = String(res.statusCode);
 

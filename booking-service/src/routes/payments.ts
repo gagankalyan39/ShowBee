@@ -8,16 +8,27 @@ import { createNotification } from '../services/notificationService';
 import { getIO } from '../socket';
 import { generateQR } from '../utils/helpers';
 import { v4 as uuidv4 } from 'uuid';
-import { paymentOutcomes } from '../metrics';
+import { 
+  paymentOutcomes, 
+  paymentAttempts, 
+  paymentSuccess, 
+  paymentFailures, 
+  paymentDuration, 
+  bookingCreations 
+} from '../metrics';
 
 const router = Router();
 
 // POST /api/payments — process mock payment
 router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
+  const startPay = Date.now();
+  const ARCH = (process.env.ARCHITECTURE_LABEL || 'microservice').trim();
   const client = await getClient();
   try {
-    const { bookingId, method, simulateResult } = req.body;
+    const { bookingId, simulateResult } = req.body;
+    const method = (req.body.method || 'CARD').toUpperCase();
     const userId = req.user!.id;
+    paymentAttempts.labels(method, ARCH).inc();
 
     await client.query('BEGIN');
 
@@ -78,7 +89,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       await client.query(`UPDATE bookings SET status='FAILED', updated_at=NOW() WHERE id=$1`, [bookingId]);
       await client.query('COMMIT');
 
-      paymentOutcomes.labels('failed', method.toUpperCase(), process.env.ARCHITECTURE_LABEL || 'microservice').inc();
+      paymentOutcomes.labels('failed', method, ARCH).inc();
+      paymentFailures.labels(method, ARCH).inc();
+      paymentDuration.labels(method, ARCH).observe((Date.now() - startPay) / 1000);
 
       return res.status(409).json({
         success: false,
@@ -116,7 +129,10 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       `, [bookingId, userId]);
 
       await client.query('COMMIT');
-      paymentOutcomes.labels('success', method.toUpperCase(), process.env.ARCHITECTURE_LABEL || 'microservice').inc();
+      paymentOutcomes.labels('success', method, ARCH).inc();
+      paymentSuccess.labels(method, ARCH).inc();
+      bookingCreations.labels('confirmed', ARCH).inc();
+      paymentDuration.labels(method, ARCH).observe((Date.now() - startPay) / 1000);
 
       const showInfo = await query(`
         SELECT m.title, t.name AS theatre, s.start_time
@@ -168,7 +184,9 @@ router.post('/', authenticate, async (req: AuthRequest, res: Response) => {
       `, [bookingId, userId]);
 
       await client.query('COMMIT');
-      paymentOutcomes.labels(paymentStatus.toLowerCase(), method.toUpperCase(), process.env.ARCHITECTURE_LABEL || 'microservice').inc();
+      paymentOutcomes.labels(paymentStatus.toLowerCase(), method, ARCH).inc();
+      paymentFailures.labels(method, ARCH).inc();
+      paymentDuration.labels(method, ARCH).observe((Date.now() - startPay) / 1000);
 
       await createNotification(userId, 'PAYMENT_FAILED', '❌ Payment Failed',
         `Your payment of ₹${booking.total_amount} for booking ${booking.booking_reference} failed. Please try again.`,

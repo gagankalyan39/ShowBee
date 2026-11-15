@@ -1,7 +1,7 @@
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Trend } from 'k6/metrics';
-import { getAuthToken, getShowAndSeats, holdSeats, MONOLITH_URL } from './helpers.js';
+import { getAuthToken, getShowAndSeats, holdSeats, createBooking, confirmPayment, MONOLITH_URL } from './helpers.js';
 
 // Staircase: [ { vus, label } ]
 const STAIRCASE = [10, 25, 50, 100, 250, 500, 750, 1000, 1500, 2000, 3000, 4000, 5000];
@@ -38,7 +38,7 @@ const bookingFailures  = new Counter('live_demo_booking_failures');
 const bookingDuration  = new Trend('live_demo_booking_duration_ms', true);
 
 const TARGET_URL = __ENV.TARGET_URL || MONOLITH_URL;
-const LOCK_MODE  = (__ENV.LOCK_MODE || 'PESSIMISTIC').toUpperCase();
+const RAW_LOCK_MODE = (__ENV.LOCK_MODE || 'HEAD_TO_HEAD').toUpperCase();
 
 export function setup() {
   const token = getAuthToken(TARGET_URL);
@@ -64,7 +64,7 @@ export function setup() {
   }
 
   const startTime = Date.now();
-  console.log(`[setup] targetUrl=${TARGET_URL} lockMode=${LOCK_MODE} showId=${showId} seatsFound=${seatIds.length} startTime=${startTime}`);
+  console.log(`[setup] targetUrl=${TARGET_URL} rawLockMode=${RAW_LOCK_MODE} showId=${showId} seatsFound=${seatIds.length} startTime=${startTime}`);
   return { showId, seatIds, token, startTime };
 }
 
@@ -73,6 +73,12 @@ let lastTelemetryTime = 0;
 export default function (data) {
   const vuToken = (tokens.length > 0 && __VU > 0) ? tokens[(__VU - 1) % tokens.length] : data.token;
   if (!vuToken || !data.showId) { sleep(0.5); return; }
+
+  // Select active lock mode: HEAD_TO_HEAD splits VUs 50/50 between PESSIMISTIC and OPTIMISTIC
+  let activeLockMode = RAW_LOCK_MODE;
+  if (RAW_LOCK_MODE === 'HEAD_TO_HEAD' || RAW_LOCK_MODE === 'DUAL' || RAW_LOCK_MODE === 'COMPARISON') {
+    activeLockMode = (__VU % 2 === 1) ? 'PESSIMISTIC' : 'OPTIMISTIC';
+  }
 
   // Compute active staircase level based on elapsed time (RAMP_SECS + HOLD_SECS per step)
   const stepDuration = RAMP_SECS + HOLD_SECS;
@@ -85,6 +91,7 @@ export default function (data) {
     'X-K6-VU': String(__VU),
     'X-K6-Target-VU': String(currentTargetVu),
     'X-K6-Stage': String(currentStage),
+    'X-Lock-Mode': activeLockMode,
   };
 
   // Broadcast stage telemetry periodically from VU 1
@@ -108,12 +115,26 @@ export default function (data) {
 
   bookingRequests.add(1);
   const start = Date.now();
-  const res = holdSeats(TARGET_URL, vuToken, data.showId, [seatId], LOCK_MODE, customHeaders);
+  const res = holdSeats(TARGET_URL, vuToken, data.showId, [seatId], activeLockMode, customHeaders);
   bookingDuration.add(Date.now() - start);
 
   if (res.status === 200) {
     bookingSuccesses.add(1);
     check(res, { 'seat held successfully': r => r.status === 200 });
+
+    // Complete full booking lifecycle: reservation -> booking creation -> payment confirmation
+    try {
+      const bRes = createBooking(TARGET_URL, vuToken, data.showId, [seatId]);
+      if (bRes.status === 201) {
+        const bJson = JSON.parse(bRes.body);
+        const bookingId = bJson.data?.id;
+        if (bookingId) {
+          const methods = ['CARD', 'UPI', 'NETBANKING'];
+          const method = methods[__ITER % methods.length];
+          confirmPayment(TARGET_URL, vuToken, bookingId, method, 'SUCCESS');
+        }
+      }
+    } catch (e) {}
   } else {
     bookingFailures.add(1);
     check(res, { 'expected response (conflict/ok)': r => r.status === 409 || r.status === 200 || r.status === 400 });

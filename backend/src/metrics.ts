@@ -50,6 +50,28 @@ export const seatLockDuration = new Histogram({
 });
 
 // ── Booking Metrics ──────────────────────────────────────────
+export const bookingAttempts = new Counter({
+  name: 'showbee_booking_attempts_total',
+  help: 'Total booking transaction attempts',
+  labelNames: ['architecture'],
+  registers: [register],
+});
+
+export const bookingSuccess = new Counter({
+  name: 'showbee_booking_success_total',
+  help: 'Total successful booking creations',
+  labelNames: ['architecture'],
+  registers: [register],
+});
+
+export const bookingDuration = new Histogram({
+  name: 'showbee_booking_duration_seconds',
+  help: 'Booking transaction processing duration in seconds',
+  labelNames: ['architecture'],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+  registers: [register],
+});
+
 export const bookingRequests = new Counter({
   name: 'showbee_booking_requests_total',
   help: 'Total booking API requests received',
@@ -78,10 +100,48 @@ export const bookingCreations = new Counter({
   registers: [register],
 });
 
+// ── Payment Metrics ──────────────────────────────────────────
+export const paymentAttempts = new Counter({
+  name: 'showbee_payment_attempts_total',
+  help: 'Total payment attempts',
+  labelNames: ['method', 'architecture'],
+  registers: [register],
+});
+
+export const paymentSuccess = new Counter({
+  name: 'showbee_payment_success_total',
+  help: 'Total successful payments',
+  labelNames: ['method', 'architecture'],
+  registers: [register],
+});
+
+export const paymentFailures = new Counter({
+  name: 'showbee_payment_failures_total',
+  help: 'Total failed payments',
+  labelNames: ['method', 'architecture'],
+  registers: [register],
+});
+
+export const paymentDuration = new Histogram({
+  name: 'showbee_payment_duration_seconds',
+  help: 'Payment gateway transaction duration in seconds',
+  labelNames: ['method', 'architecture'],
+  buckets: [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5],
+  registers: [register],
+});
+
 export const paymentOutcomes = new Counter({
   name: 'showbee_payment_outcomes_total',
   help: 'Payment outcomes',
   labelNames: ['status', 'method', 'architecture'],
+  registers: [register],
+});
+
+// ── Database Metrics ─────────────────────────────────────────
+export const dbPoolMax = new Gauge({
+  name: 'showbee_db_pool_max_connections',
+  help: 'Maximum configured PostgreSQL connection pool size',
+  labelNames: ['architecture'],
   registers: [register],
 });
 
@@ -234,9 +294,17 @@ export function recordSeatLockSuccess(mode: string, arch: string) {
 dbPoolActive.labels(CURRENT_ARCH).set(0);
 dbPoolIdle.labels(CURRENT_ARCH).set(0);
 dbPoolWaiting.labels(CURRENT_ARCH).set(0);
+dbPoolMax.labels(CURRENT_ARCH).set(20);
 dbDeadlocks.labels(CURRENT_ARCH).inc(0);
 dbTransactionRollbacks.labels(CURRENT_ARCH).inc(0);
 activeVirtualUsers.labels(CURRENT_ARCH).set(0);
 targetVirtualUsers.labels(CURRENT_ARCH).set(0);
 currentLoadStage.labels(CURRENT_ARCH).set(0);
 doubleBookingViolations.labels(CURRENT_ARCH).inc(0);
+bookingAttempts.labels(CURRENT_ARCH).inc(0);
+bookingSuccess.labels(CURRENT_ARCH).inc(0);
+['UPI', 'CARD', 'NETBANKING'].forEach((m) => {
+  paymentAttempts.labels(m, CURRENT_ARCH).inc(0);
+  paymentSuccess.labels(m, CURRENT_ARCH).inc(0);
+  paymentFailures.labels(m, CURRENT_ARCH).inc(0);
+});

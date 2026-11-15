@@ -7,6 +7,7 @@ dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config({ path: path.resolve(__dirname, '../../../backend/.env') });
 
 import {
+  dbPoolMax,
   dbPoolActive,
   dbPoolIdle,
   dbPoolWaiting,
@@ -29,7 +30,7 @@ pool.on('error', (err) => {
 });
 
 export function updatePoolMetrics() {
-  const arch = process.env.ARCHITECTURE_LABEL || 'microservice';
+  const arch = (process.env.ARCHITECTURE_LABEL || 'microservice').trim();
   const total = pool.totalCount || 0;
   const idle = pool.idleCount || 0;
   const active = Math.max(0, total - idle);
@@ -37,6 +38,7 @@ export function updatePoolMetrics() {
   dbPoolActive.labels(arch).set(active);
   dbPoolIdle.labels(arch).set(idle);
   dbPoolWaiting.labels(arch).set(waiting);
+  dbPoolMax.labels(arch).set(20);
 }
 
 export const query = async (text: string, params?: any[]) => {

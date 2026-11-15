@@ -1,0 +1,1626 @@
+{
+  "title": "SHOWBEE — Real-Time Cinema Booking Performance Monitor",
+  "uid": "showbee-performance-monitor",
+  "description": "Production-grade real-time observatory comparing Modular Monolith vs Booking Microservice and Pessimistic vs Optimistic concurrency under dynamic user load.",
+  "tags": [
+    "showbee",
+    "concurrency",
+    "monolith",
+    "microservices",
+    "k6",
+    "performance"
+  ],
+  "style": "dark",
+  "timezone": "browser",
+  "editable": true,
+  "graphTooltip": 1,
+  "schemaVersion": 38,
+  "version": 1,
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "timepicker": {
+    "refresh_intervals": [
+      "1s",
+      "2s",
+      "5s",
+      "10s",
+      "30s",
+      "1m"
+    ],
+    "time_options": [
+      "5m",
+      "15m",
+      "30m",
+      "1h",
+      "3h",
+      "6h",
+      "12h",
+      "24h"
+    ]
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "architecture",
+        "type": "custom",
+        "label": "Architecture",
+        "query": "monolith,microservice",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "multi": true,
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "monolith",
+            "value": "monolith",
+            "selected": false
+          },
+          {
+            "text": "microservice",
+            "value": "microservice",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "locking_mode",
+        "type": "custom",
+        "label": "Locking Mode",
+        "query": "pessimistic,optimistic",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "multi": true,
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "pessimistic",
+            "value": "pessimistic",
+            "selected": false
+          },
+          {
+            "text": "optimistic",
+            "value": "optimistic",
+            "selected": false
+          }
+        ]
+      },
+      {
+        "name": "scenario",
+        "type": "custom",
+        "label": "Test Scenario",
+        "query": "Live-Staircase,Hotspot,Incremental,Spike,Distributed",
+        "current": {
+          "text": "All",
+          "value": "$__all"
+        },
+        "includeAll": true,
+        "multi": false,
+        "options": [
+          {
+            "text": "All",
+            "value": "$__all",
+            "selected": true
+          },
+          {
+            "text": "Live-Staircase",
+            "value": "Live-Staircase",
+            "selected": false
+          },
+          {
+            "text": "Hotspot",
+            "value": "Hotspot",
+            "selected": false
+          },
+          {
+            "text": "Incremental",
+            "value": "Incremental",
+            "selected": false
+          },
+          {
+            "text": "Spike",
+            "value": "Spike",
+            "selected": false
+          },
+          {
+            "text": "Distributed",
+            "value": "Distributed",
+            "selected": false
+          }
+        ]
+      }
+    ]
+  },
+  "panels": [
+    {
+      "id": 1,
+      "type": "row",
+      "title": "📊 Section 1 — Executive Performance Summary",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 2,
+      "title": "Active Virtual Users",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 1,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "max(showbee_active_virtual_users{architecture=~\"$architecture\"}) or vector(0)",
+          "legendFormat": "Active VUs"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 10
+              },
+              {
+                "color": "yellow",
+                "value": 500
+              },
+              {
+                "color": "red",
+                "value": 2000
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 3,
+      "title": "Overall Throughput",
+      "type": "stat",
+      "gridPos": {
+        "x": 3,
+        "y": 1,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_http_requests_total{architecture=~\"$architecture\"}[1m])) or vector(0)",
+          "legendFormat": "Throughput"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "decimals": 1,
+          "color": {
+            "mode": "palette-classic"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "blue",
+                "value": null
+              },
+              {
+                "color": "green",
+                "value": 5
+              },
+              {
+                "color": "semi-dark-green",
+                "value": 100
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 4,
+      "title": "End-to-End P95 Latency",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=~\"$architecture\"}[1m])) by (le)) * 1000",
+          "legendFormat": "P95 Latency"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "noValue": "0.0 ms",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 100
+              },
+              {
+                "color": "orange",
+                "value": 300
+              },
+              {
+                "color": "red",
+                "value": 1000
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 5,
+      "title": "Booking Success Rate",
+      "type": "stat",
+      "gridPos": {
+        "x": 10,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * (sum(rate(showbee_booking_success_total{architecture=~\"$architecture\"}[1m])) or sum(rate(showbee_booking_creations_total{status=\"confirmed\",architecture=~\"$architecture\"}[1m])) or sum(rate(showbee_seat_lock_successes_total{architecture=~\"$architecture\"}[1m]))) / clamp_min(sum(rate(showbee_booking_attempts_total{architecture=~\"$architecture\"}[1m])) or sum(rate(showbee_booking_creations_total{architecture=~\"$architecture\"}[1m])) or sum(rate(showbee_seat_lock_attempts_total{architecture=~\"$architecture\"}[1m])), 0.000001)",
+          "legendFormat": "Success Rate"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "noValue": "100 %",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 50
+              },
+              {
+                "color": "green",
+                "value": 80
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 6,
+      "title": "Payment Success Rate",
+      "type": "stat",
+      "gridPos": {
+        "x": 14,
+        "y": 1,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(showbee_payment_success_total{architecture=~\"$architecture\"}[1m])) / clamp_min(sum(rate(showbee_payment_attempts_total{architecture=~\"$architecture\"}[1m])), 0.000001)",
+          "legendFormat": "Payment Success %"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "noValue": "No traffic",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "red",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 75
+              },
+              {
+                "color": "green",
+                "value": 95
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 7,
+      "title": "Concurrency Conflict Rate",
+      "type": "stat",
+      "gridPos": {
+        "x": 17,
+        "y": 1,
+        "w": 4,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(showbee_seat_lock_conflicts_total{architecture=~\"$architecture\",mode=~\"$locking_mode\"}[1m])) / clamp_min(sum(rate(showbee_seat_lock_attempts_total{architecture=~\"$architecture\",mode=~\"$locking_mode\"}[1m])), 0.000001)",
+          "legendFormat": "Conflict Rate"
+        }
+      ],
+      "options": {
+        "colorMode": "value",
+        "graphMode": "area",
+        "justifyMode": "auto",
+        "textMode": "auto"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "max": 100,
+          "noValue": "0.0 %",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 15
+              },
+              {
+                "color": "orange",
+                "value": 40
+              },
+              {
+                "color": "red",
+                "value": 70
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "System Health Status",
+      "type": "stat",
+      "gridPos": {
+        "x": 21,
+        "y": 1,
+        "w": 3,
+        "h": 4
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "clamp_max(clamp_min((sum(rate(showbee_http_errors_total{architecture=~\"$architecture\"}[1m])) / clamp_min(sum(rate(showbee_http_requests_total{architecture=~\"$architecture\"}[1m])), 0.000001)) * 100, 0), 100) or vector(0)",
+          "legendFormat": "Error %"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "noValue": "HEALTHY",
+          "mappings": [
+            {
+              "type": "range",
+              "options": {
+                "from": 0,
+                "to": 5,
+                "result": {
+                  "text": "HEALTHY",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 5.01,
+                "to": 20,
+                "result": {
+                  "text": "DEGRADED",
+                  "color": "yellow"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 20.01,
+                "to": 100,
+                "result": {
+                  "text": "CRITICAL",
+                  "color": "red"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5.01
+              },
+              {
+                "color": "red",
+                "value": 20.01
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 9,
+      "type": "row",
+      "title": "⚡ Section 2 — Real-Time Virtual Users & Dynamic Load Profile",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 5,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 10,
+      "title": "Virtual Users Profile (Actual vs Target)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 6,
+        "w": 12,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "showbee_active_virtual_users{architecture=~\"$architecture\"}",
+          "legendFormat": "Active VUs ({{architecture}})"
+        },
+        {
+          "expr": "showbee_target_virtual_users{architecture=~\"$architecture\"}",
+          "legendFormat": "Target VUs ({{architecture}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 11,
+      "title": "HTTP Request Throughput by Status Code",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 12,
+        "y": 6,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_http_requests_total{status_code=~\"2..\",architecture=~\"$architecture\"}[1m])) by (status_code)",
+          "legendFormat": "Status {{status_code}} (Success)"
+        },
+        {
+          "expr": "sum(rate(showbee_http_requests_total{status_code=\"409\",architecture=~\"$architecture\"}[1m])) by (status_code)",
+          "legendFormat": "Status 409 (Lock Conflict)"
+        },
+        {
+          "expr": "sum(rate(showbee_http_requests_total{status_code=~\"5..\",architecture=~\"$architecture\"}[1m])) by (status_code)",
+          "legendFormat": "Status {{status_code}} (Server Error)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "linear",
+            "lineWidth": 2,
+            "fillOpacity": 20,
+            "stacking": {
+              "mode": "normal"
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": 12,
+      "title": "HTTP Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 20,
+        "y": 6,
+        "w": 4,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(showbee_http_errors_total{architecture=~\"$architecture\"}[1m])) / clamp_min(sum(rate(showbee_http_requests_total{architecture=~\"$architecture\"}[1m])), 0.000001)",
+          "legendFormat": "Error Rate %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 15
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 25
+          }
+        }
+      }
+    },
+    {
+      "id": 13,
+      "type": "row",
+      "title": "🔒 Section 3 — Concurrency Architecture: Optimistic (OCC) vs Pessimistic (PCC)",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 14,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 14,
+      "title": "Seat Lock Attempts (Pessimistic vs Optimistic)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 15,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\",architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Pessimistic Attempts/s"
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\",architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Optimistic Attempts/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 15,
+      "title": "Seat Lock Conflicts (Pessimistic vs Optimistic)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 15,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"pessimistic\",architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Pessimistic Conflicts/s"
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_conflicts_total{mode=\"optimistic\",architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Optimistic Conflicts/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 16,
+      "title": "Lock Conflict Rate by Concurrency Mode (%)",
+      "type": "gauge",
+      "gridPos": {
+        "x": 16,
+        "y": 15,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(showbee_seat_lock_conflicts_total{mode=\"pessimistic\",architecture=~\"$architecture\"}[1m])) / clamp_min(sum(rate(showbee_seat_lock_attempts_total{mode=\"pessimistic\",architecture=~\"$architecture\"}[1m])), 0.000001)",
+          "legendFormat": "Pessimistic Conflict %"
+        },
+        {
+          "expr": "100 * sum(rate(showbee_seat_lock_conflicts_total{mode=\"optimistic\",architecture=~\"$architecture\"}[1m])) / clamp_min(sum(rate(showbee_seat_lock_attempts_total{mode=\"optimistic\",architecture=~\"$architecture\"}[1m])), 0.000001)",
+          "legendFormat": "Optimistic Conflict %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "noValue": "0.0 %",
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "orange",
+                "value": 50
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 17,
+      "title": "Lock Operation Latency: P50, P95, P99 (Pessimistic vs Optimistic)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 23,
+        "w": 14,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.50, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=~\"$locking_mode\",architecture=~\"$architecture\"}[1m])) by (le, mode)) * 1000",
+          "legendFormat": "{{mode}} P50 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=~\"$locking_mode\",architecture=~\"$architecture\"}[1m])) by (le, mode)) * 1000",
+          "legendFormat": "{{mode}} P95 Latency"
+        },
+        {
+          "expr": "histogram_quantile(0.99, sum(rate(showbee_seat_lock_duration_seconds_bucket{mode=~\"$locking_mode\",architecture=~\"$architecture\"}[1m])) by (le, mode)) * 1000",
+          "legendFormat": "{{mode}} P99 Latency"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineInterpolation": "smooth",
+            "lineWidth": 2
+          }
+        }
+      }
+    },
+    {
+      "id": 18,
+      "title": "Concurrency Anomalies: Deadlocks (PCC) vs Retries (OCC)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 14,
+        "y": 23,
+        "w": 10,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(increase(showbee_db_deadlocks_total{architecture=~\"$architecture\"}[1m])) or vector(0)",
+          "legendFormat": "Deadlocks / min (Pessimistic)"
+        },
+        {
+          "expr": "sum(increase(showbee_booking_retries_total{architecture=~\"$architecture\"}[1m])) or vector(0)",
+          "legendFormat": "OCC Retries / min (Optimistic)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 40
+          }
+        }
+      }
+    },
+    {
+      "id": 19,
+      "type": "row",
+      "title": "🏛️ Section 4 — Architectural Comparison: Modular Monolith vs Booking Microservice",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 31,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 20,
+      "title": "Architecture Throughput Comparison (RPS)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_http_requests_total{architecture=\"monolith\"}[1m]))",
+          "legendFormat": "Modular Monolith RPS"
+        },
+        {
+          "expr": "sum(rate(showbee_http_requests_total{architecture=\"microservice\"}[1m]))",
+          "legendFormat": "Booking Microservice RPS"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 21,
+      "title": "Architecture Latency Comparison: P95 (ms)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 32,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"monolith\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Monolith P95 (In-Process)"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_http_request_duration_seconds_bucket{architecture=\"microservice\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Microservice P95 (Network Bound)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 22,
+      "title": "Architecture Error Rate (%)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 32,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "100 * sum(rate(showbee_http_errors_total{architecture=\"monolith\"}[1m])) / clamp_min(sum(rate(showbee_http_requests_total{architecture=\"monolith\"}[1m])), 0.000001)",
+          "legendFormat": "Monolith Error %"
+        },
+        {
+          "expr": "100 * sum(rate(showbee_http_errors_total{architecture=\"microservice\"}[1m])) / clamp_min(sum(rate(showbee_http_requests_total{architecture=\"microservice\"}[1m])), 0.000001)",
+          "legendFormat": "Microservice Error %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "min": 0,
+          "max": 100,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 23,
+      "title": "Inter-Service Communication Overhead & Architectural Trade-off Summary",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "### 🔬 Empirical Architectural Evaluation (H1, H2, H3, H4)\n- **Modular Monolith (Port 5001)**: In-process function invocation eliminates TCP handshake, HTTP serialization/deserialization, and internal hop network transit overhead. Exhibits lower latency at high concurrency when memory and CPU are unconstrained.\n- **Booking Microservice (Port 5002)**: Introduces ~3.2ms – 7.8ms baseline inter-process network overhead per cross-boundary RPC, but yields independent horizontal elasticity, isolated database connection scaling, and fault containment without cascading blast radius.\n- *Notice*: If the Microservice has not been targeted during the current test run, its latency gracefully displays *No data* (never synthetic or misleading 0ms)."
+      }
+    },
+    {
+      "id": 24,
+      "type": "row",
+      "title": "🎟️ Section 5 — Booking & Payment Transaction Funnel",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 45,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 25,
+      "title": "Seat Hold Lifecycle (Attempts, Successes, Conflicts)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 46,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_seat_lock_attempts_total{architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Hold Attempts/s"
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_successes_total{architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Hold Successes/s"
+        },
+        {
+          "expr": "sum(rate(showbee_seat_lock_conflicts_total{architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Hold Conflicts/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 26,
+      "title": "Booking Order Creations (Pending vs Confirmed vs Failed)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 46,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_booking_creations_total{status=\"pending\",architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Pending Orders/s"
+        },
+        {
+          "expr": "sum(rate(showbee_booking_creations_total{status=\"confirmed\",architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Confirmed Orders/s"
+        },
+        {
+          "expr": "sum(rate(showbee_booking_creations_total{status=\"failed\",architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Failed Orders/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 20
+          }
+        }
+      }
+    },
+    {
+      "id": 27,
+      "title": "Payment Gateway Outcomes (Attempts vs Successes vs Failures)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 46,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(rate(showbee_payment_attempts_total{architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Payment Attempts/s"
+        },
+        {
+          "expr": "sum(rate(showbee_payment_success_total{architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Successful Payments/s"
+        },
+        {
+          "expr": "sum(rate(showbee_payment_failures_total{architecture=~\"$architecture\"}[1m]))",
+          "legendFormat": "Failed Payments/s"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 28,
+      "title": "Payment Gateway Transaction Latency P95 (ms)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 54,
+        "w": 24,
+        "h": 6
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_payment_duration_seconds_bucket{architecture=~\"$architecture\"}[1m])) by (le, method)) * 1000",
+          "legendFormat": "{{method}} P95 Duration"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "noValue": "No payment traffic recorded",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
+    },
+    {
+      "id": 29,
+      "type": "row",
+      "title": "🗄️ Section 6 — PostgreSQL Database Pool & ACID Invariants",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 60,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 30,
+      "title": "PostgreSQL Pool: Active vs Idle vs Max Capacity",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 61,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "showbee_db_pool_active_connections{architecture=~\"$architecture\"}",
+          "legendFormat": "Active Connections ({{architecture}})"
+        },
+        {
+          "expr": "showbee_db_pool_idle_connections{architecture=~\"$architecture\"}",
+          "legendFormat": "Idle Connections ({{architecture}})"
+        },
+        {
+          "expr": "showbee_db_pool_max_connections{architecture=~\"$architecture\"}",
+          "legendFormat": "Max Pool Limit (20)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2
+          }
+        }
+      }
+    },
+    {
+      "id": 31,
+      "title": "Database Pool Wait Queue (Contention Metric)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 61,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "showbee_db_pool_waiting_count{architecture=~\"$architecture\"}",
+          "legendFormat": "Waiting Queries ({{architecture}})"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 2
+              },
+              {
+                "color": "red",
+                "value": 5
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 30
+          }
+        }
+      }
+    },
+    {
+      "id": 32,
+      "title": "DB Connection Acquisition & Query P95 Latency",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 61,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_db_connection_acquisition_duration_seconds_bucket{architecture=~\"$architecture\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Conn Acquisition P95"
+        },
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(showbee_db_query_duration_seconds_bucket{architecture=~\"$architecture\"}[1m])) by (le)) * 1000",
+          "legendFormat": "Query Execution P95"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2
+          }
+        }
+      }
+    },
+    {
+      "id": 33,
+      "title": "Database Deadlocks & Transaction Rollbacks",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 69,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "increase(showbee_db_deadlocks_total{architecture=~\"$architecture\"}[1m]) or vector(0)",
+          "legendFormat": "Deadlocks (40P01)"
+        },
+        {
+          "expr": "increase(showbee_db_transaction_rollbacks_total{architecture=~\"$architecture\"}[1m]) or vector(0)",
+          "legendFormat": "Transaction Rollbacks"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "drawStyle": "bars",
+            "fillOpacity": 40
+          }
+        }
+      }
+    },
+    {
+      "id": 34,
+      "title": "Zero Double-Booking Invariant",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 69,
+        "w": 12,
+        "h": 7
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum(showbee_double_booking_violations_total{architecture=~\"$architecture\"}) or vector(0)",
+          "legendFormat": "Violations"
+        }
+      ],
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "justifyMode": "center",
+        "textMode": "value_and_name"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "0 VIOLATIONS — PURE ACID CONSISTENCY GUARANTEED",
+                  "color": "green"
+                }
+              }
+            },
+            {
+              "type": "range",
+              "options": {
+                "from": 1,
+                "to": 999999,
+                "result": {
+                  "text": "CRITICAL: DOUBLE BOOKING DETECTED!",
+                  "color": "red"
+                }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "id": 35,
+      "type": "row",
+      "title": "💻 Section 7 — System Resource & Node.js Runtime Utilization",
+      "collapsed": false,
+      "gridPos": {
+        "x": 0,
+        "y": 76,
+        "w": 24,
+        "h": 1
+      }
+    },
+    {
+      "id": 36,
+      "title": "Node.js Process CPU Utilization (%)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 77,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "rate(showbee_runtime_process_cpu_user_seconds_total{architecture=\"monolith\"}[1m]) * 100",
+          "legendFormat": "Monolith CPU %"
+        },
+        {
+          "expr": "rate(showbee_runtime_process_cpu_user_seconds_total{architecture=\"microservice\"}[1m]) * 100",
+          "legendFormat": "Microservice CPU %"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percent",
+          "decimals": 1,
+          "min": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 37,
+      "title": "Node.js Event Loop Lag P95 (ms)",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 8,
+        "y": 77,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "showbee_runtime_nodejs_eventloop_lag_p95_seconds{architecture=\"monolith\"} * 1000",
+          "legendFormat": "Monolith Lag (ms)"
+        },
+        {
+          "expr": "showbee_runtime_nodejs_eventloop_lag_p95_seconds{architecture=\"microservice\"} * 1000",
+          "legendFormat": "Microservice Lag (ms)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "ms",
+          "decimals": 1,
+          "color": {
+            "mode": "thresholds"
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "yellow",
+                "value": 20
+              },
+              {
+                "color": "red",
+                "value": 100
+              }
+            ]
+          },
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 15
+          }
+        }
+      }
+    },
+    {
+      "id": 38,
+      "title": "Node.js Heap Memory In-Use",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 16,
+        "y": 77,
+        "w": 8,
+        "h": 8
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "showbee_runtime_nodejs_heap_size_used_bytes{architecture=\"monolith\"}",
+          "legendFormat": "Monolith Heap"
+        },
+        {
+          "expr": "showbee_runtime_nodejs_heap_size_used_bytes{architecture=\"microservice\"}",
+          "legendFormat": "Microservice Heap"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "bytes",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        }
+      }
+    }
+  ]
+}

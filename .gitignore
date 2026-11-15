@@ -27,3 +27,5 @@ Thumbs.db
 *.tsbuildinfo
 load-test/bin/
 *.exe
+scratch/
+

@@ -326,4 +326,16 @@ router.get('/benchmark/history', async (_req: Request, res: Response) => {
   }
 });
 
+// GET /api/admin/benchmark/communication-overhead - Empirical RPC vs In-Process comparison
+router.get('/benchmark/communication-overhead', async (req: Request, res: Response) => {
+  try {
+    const { measureCommunicationOverhead } = await import('../services/bookingServiceClient');
+    const iterations = parseInt(String(req.query.iterations || '50'), 10);
+    const results = await measureCommunicationOverhead(iterations);
+    res.json({ success: true, data: results });
+  } catch (error: any) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
 export default router;

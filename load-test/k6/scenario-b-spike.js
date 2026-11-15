@@ -57,7 +57,12 @@ export default function (data) {
 
   spikeAttempts.add(1);
   const start = Date.now();
-  const res = holdSeats(targetUrl, data.token, data.showId, targetSeat, lockMode);
+  const res = holdSeats(targetUrl, data.token, data.showId, targetSeat, lockMode, {
+    'X-K6-VU': String(__VU),
+    'X-K6-Target-VU': String(__VU),
+    'X-K6-Stage': '1',
+    'X-Lock-Mode': lockMode,
+  });
   spikeDuration.add(Date.now() - start);
 
   if (res.status === 200) {

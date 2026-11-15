@@ -105,6 +105,16 @@ async function runExperiment(exp: typeof EXPERIMENTS[0], scenario: typeof SCENAR
 async function main() {
   if (!fs.existsSync(RESULTS_DIR)) fs.mkdirSync(RESULTS_DIR, { recursive: true });
 
+  // Ensure structured result subdirectories exist
+  const subdirs = [
+    'incremental-load', 'spike', 'hotspot', 'distributed',
+    'monolith', 'microservice', 'pessimistic', 'optimistic', 'architecture-comparison'
+  ];
+  for (const dir of subdirs) {
+    const full = path.join(RESULTS_DIR, dir);
+    if (!fs.existsSync(full)) fs.mkdirSync(full, { recursive: true });
+  }
+
   const runTimestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const outputFile = path.join(RESULTS_DIR, `exp4config-${runTimestamp}.json`);
   const csvFile = path.join(RESULTS_DIR, `exp4config-${runTimestamp}.csv`);
@@ -127,6 +137,13 @@ async function main() {
         allResults.push(result);
         // Save intermediate results
         fs.writeFileSync(outputFile, JSON.stringify(allResults, null, 2));
+
+        // Save per-category copies
+        const itemFile = `${result.experimentId}_${result.scenario}_rep${result.rep}.json`;
+        fs.writeFileSync(path.join(RESULTS_DIR, scenario.name, itemFile), JSON.stringify(result, null, 2));
+        fs.writeFileSync(path.join(RESULTS_DIR, result.architecture, itemFile), JSON.stringify(result, null, 2));
+        fs.writeFileSync(path.join(RESULTS_DIR, result.lockMode.toLowerCase(), itemFile), JSON.stringify(result, null, 2));
+        fs.writeFileSync(path.join(RESULTS_DIR, 'architecture-comparison', itemFile), JSON.stringify(result, null, 2));
       }
     }
   }

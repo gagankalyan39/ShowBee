@@ -23,60 +23,69 @@ This guide documents the telemetry pipeline, Prometheus metrics dictionary, math
 
 ---
 
-## 2. Dashboard Structure: 7 Real-Time Sections
+## 2. Master Dashboard Structure: 8 Real-Time Sections
 
-The dashboard is provisioned under:
-- **Title**: `SHOWBEE — Real-Time Cinema Booking Performance Monitor`
-- **UID**: `showbee-performance-monitor`
-- **URL**: `http://localhost:3001/d/showbee-performance-monitor`
+The master research evaluation dashboard is provisioned under:
+- **Title**: `SHOWBEE — Architecture and Performance Evaluation Dashboard`
+- **UID**: `showbee-architecture-evaluation`
+- **URL**: `http://localhost:3001/d/showbee-architecture-evaluation`
 
-### Section 1 — Executive Performance Summary (Top KPI Row)
-- **Active Virtual Users**: Real-time VU count driving the system.
-- **Overall Throughput (RPS)**: Aggregated HTTP requests per second across active architectures.
-- **End-to-End P95 Latency**: 95th percentile request latency in milliseconds.
+### Section 1: Live Test Overview (Top Row)
+- **Active VUs**: Current virtual users executing load on the target architecture.
+- **Maximum VUs**: Peak concurrency achieved in the observation window.
+- **HTTP Requests/sec**: Total throughput ingested across active instances.
 - **Booking Success Rate (%)**: Percentage of booking attempts successfully confirmed.
-- **Payment Success Rate (%)**: Percentage of payments completed successfully.
-- **Concurrency Conflict Rate (%)**: Percentage of seat hold requests rejected due to concurrency lock contention (HTTP 409).
-- **System Health Status**: Automated multi-state indicator:
-  - `HEALTHY` (Green): HTTP error rate $\le$ 5%
-  - `DEGRADED` (Yellow): HTTP error rate between 5% and 20%
-  - `CRITICAL` (Red): HTTP error rate > 20%
+- **HTTP Error Rate (%)**: Percentage of non-2xx responses.
+- **Successful Bookings/sec**: Real-time velocity of confirmed seat purchases.
+- **Lock Conflicts/sec**: Rejection velocity due to concurrent seat contention.
+- **Average Response Time**: Mean end-to-end request latency in milliseconds.
 
-### Section 2 — Real-Time Virtual Users and Dynamic Load Profile
-- **Virtual Users Profile**: Actual active VUs vs planned target VUs over the staircase timeline.
-- **HTTP Throughput by Status Code**: Stacked timeseries showing HTTP 200 (Success), 409 (Lock Conflict), and 500 (Server Error).
-- **HTTP Error Rate (%)**: Real-time percentage of non-2xx responses.
+### Section 2: Load and Scalability
+- **Active VUs Over Time**: Comparison of actual active VUs against target staircase profile.
+- **HTTP Requests/sec by Status Code**: Stacked timeseries partitioned into 2xx (Success), 409 (Lock Conflict), and 5xx (Server Error).
+- **Throughput vs Virtual Users**: Direct scalability curve showing throughput scaling efficiency.
+- **Latency Percentiles**: P50, P95, and P99 latency percentiles over time.
+- **Process CPU & Memory**: Real-time Node.js process CPU user % and Heap memory consumption.
 
-### Section 3 — Optimistic (OCC) vs Pessimistic (PCC) Concurrency Comparison
-- **Seat Lock Attempts/sec**: Direct throughput comparison between Pessimistic and Optimistic lock attempts.
-- **Seat Lock Conflicts/sec**: Rejection velocity under high contention.
-- **Conflict Rate Gauges**: Side-by-side percentage conflict gauges for both modes.
-- **Lock Acquisition Duration**: P50, P95, and P99 latency percentiles for seat locking operations.
-- **Concurrency Anomalies**: PostgreSQL deadlocks (`40P01`) vs OCC Compare-And-Swap retry counts.
+### Section 3: Locking Strategy Comparison (Pessimistic vs Optimistic)
+- **Lock Attempts/sec**: Pessimistic vs Optimistic lock requests.
+- **Successful Locks/sec**: Acquisition rate comparison between the two concurrency engines.
+- **Lock Conflicts/sec**: Rejection rate under contention.
+- **Conflict Rate Gauges**: Normalized percentage conflict gauges for both modes.
+- **Lock Duration Percentiles**: P50, P95, and P99 transaction holding durations.
+- **Database Lock-Wait & Deadlocks**: Connection checkout queue delay and deadlock counter (`40P01`).
 
-### Section 4 — Modular Monolith vs Booking Microservice Comparison
-- **Throughput Comparison (RPS)**: Monolith (in-process) vs Microservice (network boundary).
-- **Latency Comparison (P95)**: Direct comparison demonstrating in-process efficiency vs network RPC overhead.
-- **HTTP Error Rate Comparison**: Service failure rate isolation.
-- **Inter-Service Communication Overhead Analysis**: Architectural breakdown explaining measured network delta (~3.2ms – 7.8ms).
+### Section 4: Monolith vs Microservice Comparison
+- **HTTP Throughput (RPS)**: Monolith (in-process) vs Microservice (network boundary).
+- **Successful Bookings/sec**: Comparison of finalized booking transactions.
+- **Response Time Percentiles**: P50, P95, P99 latency demonstrating in-process efficiency vs RPC overhead.
+- **HTTP Error Rate (%)**: Service failure rate isolation.
+- **Process CPU & Memory**: Resource footprint comparison between monolithic and microservice processes.
+- **Database Pool Connections**: Active connections checked out vs queued queries.
 
-### Section 5 — Booking & Payment Funnel
-- **Seat Hold Lifecycle**: Attempts, Successes, and Conflicts over time.
-- **Booking Order Creations**: Pending vs Confirmed vs Failed bookings.
-- **Payment Gateway Outcomes**: UPI, Card, and Netbanking payment attempts vs successes.
-- **Payment Gateway Latency**: P95 transaction latency distribution by payment method.
+### Section 5: Database Integrity
+- **Zero Double-Booking Invariant**: Dedicated high-visibility ACID verification stat (`0 VIOLATIONS — PURE ACID CONSISTENT`).
+- **Database Deadlocks**: Counter tracking PostgreSQL deadlocks (`SQLSTATE 40P01`).
+- **Transaction Rollbacks**: Rate of aborted transactions.
+- **Database Lock Waits & Queued Queries**: Live count of queries waiting for a free pool connection.
+- **Connection Pool Utilization (%)**: Pool saturation relative to the 20-connection ceiling.
+- **Query Execution P95 Latency**: Database query execution latency distribution.
 
-### Section 6 — PostgreSQL Database Pool & ACID Invariants
-- **Connection Pool Saturation**: Active vs Idle connections vs Max Pool Limit (20).
-- **Pool Wait Queue**: Number of queries waiting in queue for an available connection client.
-- **Acquisition & Query Latency**: Connection checkout time vs query execution time P95.
-- **Deadlocks & Rollbacks**: Transaction abort and deadlock frequency.
-- **Zero Double-Booking Invariant**: Dedicated high-visibility ACID verification stat (strictly displays `0 VIOLATIONS — PURE ACID CONSISTENCY GUARANTEED`).
+### Section 6: Service Communication (Inter-Service RPC)
+- **Internal Service Requests/sec**: Monolith-to-Microservice RPC request volume.
+- **Service-to-Service Latency**: P50, P95, and P99 network RPC latency over HTTP.
+- **Internal API Errors & Timeouts**: Failures and timeouts detected on inter-service hops.
 
-### Section 7 — System Resource & Node.js Runtime Utilization
-- **Node.js CPU Utilization**: Monolith vs Microservice process user CPU %.
-- **Event Loop Lag (P95)**: Node.js single-thread event loop latency in ms.
-- **Heap Memory In-Use**: Process memory consumption over time.
+### Section 7: Fault Tolerance & Resilience
+- **Circuit Breaker State**: Real-time status: `0=CLOSED (HEALTHY)`, `1=HALF-OPEN (TESTING)`, `2=OPEN (TRIPPED)`.
+- **Failed Dependency Calls**: Downstream microservice failure counter categorized by error type.
+- **Dependency Recovery Duration**: Time required to restore healthy communication after failure.
+- **Error Rate During Failure vs Normal**: Visual validation of blast radius containment.
+
+### Section 8: Payment and Booking Funnel
+- **Booking Pipeline**: Attempts vs Confirmed Orders vs Failed Checkouts.
+- **Simulated Payment Outcomes**: Payment attempts vs settlements vs declines (UPI, Card, Netbanking).
+- **Payment Processing Duration**: P50, P95, P99 latency distribution of the payment settlement gateway.
 
 ---
 
@@ -107,6 +116,11 @@ The dashboard is provisioned under:
 | `showbee_db_deadlocks_total` | Counter | `architecture` | PostgreSQL deadlock events (SQLSTATE `40P01`). |
 | `showbee_db_transaction_rollbacks_total` | Counter | `architecture` | Database transactions explicitly rolled back. |
 | `showbee_double_booking_violations_total` | Counter | `architecture` | Invariant counter detecting duplicate seat allocations (strictly 0). |
+| `showbee_internal_service_requests_total` | Counter | `source`, `target`, `endpoint`, `status` | Inter-service RPC request count. |
+| `showbee_internal_service_duration_seconds`| Histogram | `source`, `target`, `endpoint` | Inter-service RPC latency histogram. |
+| `showbee_circuit_breaker_state` | Gauge | `service` | Circuit breaker state: 0=CLOSED, 1=HALF_OPEN, 2=OPEN. |
+| `showbee_failed_dependency_calls_total` | Counter | `dependency`, `error_type` | Failed downstream dependency calls. |
+| `showbee_dependency_recovery_seconds` | Gauge | `dependency` | Recovery time to restore healthy state after an outage. |
 
 ---
 
@@ -158,10 +172,10 @@ This automatically initiates:
 - Booking Microservice on port 5002 (`http://localhost:5002`)
 - Next.js Web Frontend on port 3000 (`http://localhost:3000`)
 
-### Step 2: Open Grafana Performance Monitor
+### Step 2: Open Grafana Evaluation Dashboard
 Navigate to:
 ```
-http://localhost:3001/d/showbee-performance-monitor
+http://localhost:3001/d/showbee-architecture-evaluation
 ```
 *(Default credentials: admin / admin)*
 
@@ -169,19 +183,21 @@ http://localhost:3001/d/showbee-performance-monitor
 
 | Objective | Script to Run | Description |
 |---|---|---|
-| **Head-to-Head Monolith Demo** | `load-test\start-live-demo.bat` | 50% Pessimistic + 50% Optimistic load ramp on Modular Monolith (:5001). Demonstrates simultaneous dual-locking graphs. |
+| **Head-to-Head Monolith Demo** | `load-test\start-live-demo.bat` | 50% Pessimistic + 50% Optimistic load ramp on Modular Monolith (:5001). Demonstrates simultaneous dual-locking curves. |
 | **Head-to-Head Microservice Demo** | `load-test\start-live-demo-microservice.bat` | 50% Pessimistic + 50% Optimistic load ramp on Booking Microservice (:5002). Demonstrates service boundary behavior. |
 | **Dedicated Optimistic CAS Demo** | `load-test\start-live-demo-optimistic.bat` | Pure OCC load test showing conflict rates and retries without pessimistic locking. |
 | **Research Matrix (4 Experiments)** | `load-test\run-experiment.bat` | Interactive menu to launch Hotspot Contention (EXP-001 through EXP-004) or full 24-run matrix. |
+| **Resilience & Fault Tolerance Suite** | `cd backend && npx tsx src/tests/run_fault_tolerance_suite.ts` | Programmatically triggers downstream failure, pool saturation, and lock timeout tests. |
 
 ---
 
 ## 6. Verification Checklist
 
-- [x] All 7 dashboard sections display live data during load tests.
+- [x] All 8 master dashboard sections display live data during load tests.
 - [x] Booking Success Rate reflects confirmed booking conversions.
-- [x] Payment Success Rate displays live gateway settlement percentages.
+- [x] Payment Success Rate displays live gateway settlement percentages with simulated tagging.
 - [x] Microservice latency renders true user request latencies without probe contamination.
 - [x] Optimistic and Pessimistic conflict rates update concurrently during `HEAD_TO_HEAD` tests.
 - [x] Database connection pool metrics display active checkout vs max pool capacity (20).
 - [x] Double booking violations strictly remain 0 under any level of concurrency.
+- [x] Inter-service RPC communication latency and circuit breaker state accurately reflect live conditions.

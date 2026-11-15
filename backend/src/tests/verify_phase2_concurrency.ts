@@ -462,6 +462,7 @@ async function runPhase2Verification() {
   console.log('\n====================================================');
   console.log(`🎉 ALL ${passedTests}/${totalTests} CONCURRENCY & INTEGRITY TESTS PASSED!`);
   console.log('====================================================\n');
+  process.exit(0);
 }
 
 runPhase2Verification().catch(err => {

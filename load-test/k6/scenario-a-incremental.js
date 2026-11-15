@@ -64,7 +64,12 @@ export default function (data) {
 
   lockAttempts.add(1);
   const start = Date.now();
-  const res = holdSeats(targetUrl, data.token, data.showId, targetSeat, lockMode);
+  const res = holdSeats(targetUrl, data.token, data.showId, targetSeat, lockMode, {
+    'X-K6-VU': String(__VU),
+    'X-K6-Target-VU': String(__VU),
+    'X-K6-Stage': '1',
+    'X-Lock-Mode': lockMode,
+  });
   const duration = Date.now() - start;
   lockDuration.add(duration);
 

@@ -190,6 +190,7 @@ async function runTestSuite() {
   console.log('\n====================================================');
   console.log('✅ ALL CONCURRENCY & LOCKING TESTS PASSED 100%');
   console.log('====================================================\n');
+  process.exit(0);
 }
 
 runTestSuite().catch((err) => {

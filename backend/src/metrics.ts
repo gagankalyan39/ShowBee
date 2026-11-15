@@ -272,6 +272,58 @@ export const doubleBookingViolations = new Counter({
   registers: [register],
 });
 
+// ── Inter-Service Communication Metrics (Monolith <-> Microservice) ──
+export const internalServiceRequests = new Counter({
+  name: 'showbee_internal_service_requests_total',
+  help: 'Total inter-service communication RPC requests',
+  labelNames: ['source', 'target', 'endpoint', 'status'],
+  registers: [register],
+});
+
+export const internalServiceDuration = new Histogram({
+  name: 'showbee_internal_service_duration_seconds',
+  help: 'Inter-service RPC communication latency in seconds',
+  labelNames: ['source', 'target', 'endpoint'],
+  buckets: [0.0005, 0.001, 0.002, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1],
+  registers: [register],
+});
+
+export const internalServiceErrors = new Counter({
+  name: 'showbee_internal_service_errors_total',
+  help: 'Total inter-service RPC errors',
+  labelNames: ['source', 'target', 'endpoint'],
+  registers: [register],
+});
+
+export const internalServiceTimeouts = new Counter({
+  name: 'showbee_internal_service_timeouts_total',
+  help: 'Total inter-service RPC timeouts',
+  labelNames: ['source', 'target', 'endpoint'],
+  registers: [register],
+});
+
+// ── Fault Tolerance & Circuit Breaker Metrics ────────────────
+export const circuitBreakerState = new Gauge({
+  name: 'showbee_circuit_breaker_state',
+  help: 'Circuit breaker state: 0=CLOSED (Normal), 1=HALF_OPEN (Testing), 2=OPEN (Tripped)',
+  labelNames: ['service'],
+  registers: [register],
+});
+
+export const failedDependencyCalls = new Counter({
+  name: 'showbee_failed_dependency_calls_total',
+  help: 'Total failed downstream dependency calls',
+  labelNames: ['dependency', 'error_type'],
+  registers: [register],
+});
+
+export const dependencyRecoveryDuration = new Gauge({
+  name: 'showbee_dependency_recovery_seconds',
+  help: 'Time taken to restore healthy state after dependency failure',
+  labelNames: ['dependency'],
+  registers: [register],
+});
+
 // Helper for dual recording of success
 export function recordSeatLockSuccess(mode: string, arch: string) {
   seatLockSuccess.labels(mode, arch).inc();
@@ -308,3 +360,10 @@ bookingSuccess.labels(CURRENT_ARCH).inc(0);
   paymentSuccess.labels(m, CURRENT_ARCH).inc(0);
   paymentFailures.labels(m, CURRENT_ARCH).inc(0);
 });
+
+circuitBreakerState.labels('booking-microservice').set(0);
+dependencyRecoveryDuration.labels('booking-microservice').set(0);
+failedDependencyCalls.labels('booking-microservice', 'ECONNREFUSED').inc(0);
+internalServiceRequests.labels('monolith', 'microservice', '/api/shows/:id/seats/hold', '200').inc(0);
+internalServiceErrors.labels('monolith', 'microservice', '/api/shows/:id/seats/hold').inc(0);
+internalServiceTimeouts.labels('monolith', 'microservice', '/api/shows/:id/seats/hold').inc(0);

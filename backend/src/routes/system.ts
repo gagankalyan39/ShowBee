@@ -281,7 +281,7 @@ router.post('/test-concurrency', async (_req: Request, res: Response) => {
 });
 
 
-// GET /api/system/observatory — Structured Prometheus metrics for live In-App Grafana
+// GET /api/system/observatory ï¿½ Structured Prometheus metrics for live In-App Grafana
 router.get('/observatory', async (_req: Request, res: Response) => {
   try {
     const rawMetrics = await register.getMetricsAsJSON();
@@ -289,6 +289,11 @@ router.get('/observatory', async (_req: Request, res: Response) => {
     // Quick probe for external Grafana and Prometheus
     let grafanaAlive = false;
     let prometheusAlive = false;
+    let microserviceAlive = false;
+    try {
+      const mRes = await fetch('http://localhost:5002/health', { signal: AbortSignal.timeout(400) });
+      microserviceAlive = mRes.ok;
+    } catch {}
     try {
       const gRes = await fetch('http://localhost:3001/api/health', { signal: AbortSignal.timeout(400) });
       grafanaAlive = gRes.ok;
@@ -314,7 +319,7 @@ router.get('/observatory', async (_req: Request, res: Response) => {
       timestamp: new Date().toISOString(),
       services: {
         monolith: true,
-        microservice: false, // will update if microservice responds
+        microservice: microserviceAlive,
         grafana: grafanaAlive,
         prometheus: prometheusAlive,
       },
@@ -335,4 +340,15 @@ router.get('/observatory', async (_req: Request, res: Response) => {
     res.status(500).json({ success: false, message: err.message });
   }
 });
+router.get('/benchmark/communication-overhead', async (req, res) => {
+  try {
+    const { measureCommunicationOverhead } = await import('../services/bookingServiceClient');
+    const iters = parseInt(String(req.query.iterations || '20'), 10);
+    const results = await measureCommunicationOverhead(iters);
+    res.json({ success: true, data: results });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
 export default router;
